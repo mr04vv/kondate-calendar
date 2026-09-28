@@ -78,4 +78,22 @@ class CalendarMathTest {
         assertEquals(weekOf(LocalDate.of(2026, 10, 1)), days)
         assertTrue(rows.first() is ListRow.WeekHeader)
     }
+
+    @Test
+    fun monthPageIsConsecutiveAcrossYears() {
+        assertEquals(monthPage(YearMonth.of(2026, 12)) + 1, monthPage(YearMonth.of(2027, 1)))
+        assertEquals(monthPage(YearMonth.of(2026, 1)) - 1, monthPage(YearMonth.of(2025, 12)))
+    }
+
+    @Test
+    fun monthOfPageRoundTrips() {
+        listOf(YearMonth.of(2026, 1), YearMonth.of(2026, 10), YearMonth.of(2026, 12), YearMonth.of(1, 1), YearMonth.of(9999, 12))
+            .forEach { assertEquals(it, monthOfPage(monthPage(it))) }
+    }
+
+    @Test
+    fun monthPagesCoverYearOneToYear9999() {
+        assertEquals(0, monthPage(YearMonth.of(1, 1)))
+        assertEquals(MONTH_PAGE_COUNT - 1, monthPage(YearMonth.of(9999, 12)))
+    }
 }
