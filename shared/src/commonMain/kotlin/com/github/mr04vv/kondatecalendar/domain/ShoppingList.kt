@@ -52,6 +52,13 @@ data class ShoppingGroup(
 fun groupShoppingList(items: List<ShoppingItem>): List<ShoppingGroup> =
     items.groupBy { it.name to it.checked }.map { (key, rows) -> ShoppingGroup(key.first, key.second, rows) }
 
+/** Plain text for sharing the list elsewhere: open items first, then checked ones marked as bought. */
+fun shoppingListText(groups: List<ShoppingGroup>): String =
+    (listOf(SHARE_TITLE) + groups.sortedBy { it.checked }.map { group ->
+        val amount = if (group.amount.isEmpty()) "" else " ${group.amount}"
+        "・${group.name}$amount${if (group.checked) CHECKED_MARK else ""}"
+    }).joinToString("\n")
+
 private data class SourceKey(val date: LocalDate?, val meal: Meal?, val dishId: Long)
 
 private fun ShoppingItem.sourceKey(): SourceKey? = dishId?.let { SourceKey(date, meal, it) }
@@ -67,3 +74,5 @@ private fun ShoppingItem.sourceLabel(): String? {
 }
 
 private const val AMOUNT_SEPARATOR = "、"
+private const val SHARE_TITLE = "買い物リスト"
+private const val CHECKED_MARK = "（済）"

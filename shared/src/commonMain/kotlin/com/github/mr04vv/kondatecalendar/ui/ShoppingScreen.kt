@@ -17,11 +17,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
@@ -45,6 +47,7 @@ import com.github.mr04vv.kondatecalendar.data.ShoppingItem
 import com.github.mr04vv.kondatecalendar.domain.ShoppingGroup
 import com.github.mr04vv.kondatecalendar.domain.groupShoppingList
 import com.github.mr04vv.kondatecalendar.domain.keepShoppingOrder
+import com.github.mr04vv.kondatecalendar.domain.shoppingListText
 
 @Composable
 fun ShoppingScreen(
@@ -56,6 +59,7 @@ fun ShoppingScreen(
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var amount by rememberSaveable { mutableStateOf("") }
+    val share = rememberShareText()
     // Rows stay where they are while this tab is shown, so checking one does not scroll the list.
     // Plain remember: leaving the tab drops it, and the DB order (checked rows last) returns.
     val order = remember { mutableListOf<Long>() }
@@ -80,6 +84,9 @@ fun ShoppingScreen(
         ) {
             Text("買い物リスト", style = HeadingLarge, fontSize = 26.sp, modifier = Modifier.weight(1f))
             TextButton(onClick = onDeleteChecked, enabled = items.any { it.checked }) { Text("チェック済みを消す") }
+            IconButton(onClick = { share(shoppingListText(shown)) }, enabled = items.isNotEmpty()) {
+                Icon(Icons.Default.Share, contentDescription = "テキストで共有")
+            }
         }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),

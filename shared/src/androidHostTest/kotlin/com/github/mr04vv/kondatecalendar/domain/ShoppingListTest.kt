@@ -161,4 +161,18 @@ class ShoppingListTest {
         )
         assertEquals(listOf("肉じゃが（10/7 夜）", "カレー（レシピから）"), groupShoppingList(rows).single().sources)
     }
+
+    @Test
+    fun sharedTextListsOpenItemsWithAmountsThenCheckedOnes() {
+        val rows = listOf(
+            ShoppingItem(id = 1, name = "しょうゆ", amount = "大さじ2", checked = true),
+            ShoppingItem(id = 2, name = "玉ねぎ", amount = "1個"),
+            ShoppingItem(id = 3, name = "玉ねぎ", amount = "1/2個"),
+            ShoppingItem(id = 4, name = "牛乳", amount = ""),
+        )
+        assertEquals(
+            "買い物リスト\n・玉ねぎ 1個、1/2個\n・牛乳\n・しょうゆ 大さじ2（済）",
+            shoppingListText(groupShoppingList(rows)),
+        )
+    }
 }
