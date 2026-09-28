@@ -17,10 +17,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
@@ -31,6 +32,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -39,11 +41,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.mr04vv.kondatecalendar.data.ShoppingItem
 import com.github.mr04vv.kondatecalendar.domain.ShoppingGroup
+import com.github.mr04vv.kondatecalendar.domain.groupShoppingList
+import com.github.mr04vv.kondatecalendar.domain.keepShoppingOrder
 
 @Composable
 fun ShoppingScreen(
-    items: List<ShoppingGroup>,
+    items: List<ShoppingItem>,
     onToggle: (ShoppingGroup) -> Unit,
     onDelete: (ShoppingGroup) -> Unit,
     onDeleteChecked: () -> Unit,
@@ -51,6 +56,16 @@ fun ShoppingScreen(
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var amount by rememberSaveable { mutableStateOf("") }
+    // Rows stay where they are while this tab is shown, so checking one does not scroll the list.
+    // Plain remember: leaving the tab drops it, and the DB order (checked rows last) returns.
+    val order = remember { mutableListOf<Long>() }
+    // Rows are kept in place first, then grouped: a group sits where its first row is.
+    val shown = remember(items) {
+        val rows = keepShoppingOrder(order, items)
+        order.clear()
+        rows.mapTo(order) { it.id }
+        groupShoppingList(rows)
+    }
     fun add() {
         if (name.isBlank()) return
         onAdd(name, amount)
@@ -88,8 +103,13 @@ fun ShoppingScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { add() }),
             )
-            IconButton(onClick = ::add, enabled = name.isNotBlank()) {
-                Icon(Icons.Default.Add, contentDescription = "追加")
+            Button(
+                onClick = ::add,
+                enabled = name.isNotBlank(),
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Text("追加", modifier = Modifier.padding(start = 8.dp))
             }
         }
         if (items.isEmpty()) {
@@ -99,7 +119,7 @@ fun ShoppingScreen(
             )
         }
         LazyColumn(Modifier.fillMaxSize().padding(top = 8.dp)) {
-            items(items, key = { it.items.first().id }) { item -> ShoppingRow(item, onToggle, onDelete) }
+            items(shown, key = { it.items.first().id }) { item -> ShoppingRow(item, onToggle, onDelete) }
         }
     }
 }

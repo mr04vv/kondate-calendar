@@ -14,14 +14,12 @@ import com.github.mr04vv.kondatecalendar.data.MealSlot
 import com.github.mr04vv.kondatecalendar.data.ShoppingItem
 import com.github.mr04vv.kondatecalendar.domain.ShoppingGroup
 import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
-import com.github.mr04vv.kondatecalendar.domain.groupShoppingList
 import com.github.mr04vv.kondatecalendar.domain.parsePresets
 import com.github.mr04vv.kondatecalendar.domain.presetsToInsert
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -57,8 +55,8 @@ class KondateViewModel(app: Application) : AndroidViewModel(app) {
         slots.mapNotNull { slot -> byId[slot.dishId]?.let { SlotKey(slot.date, slot.meal) to it } }.toMap()
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
-    val shopping: StateFlow<List<ShoppingGroup>> =
-        dao.shoppingItems().map(::groupShoppingList).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val shopping: StateFlow<List<ShoppingItem>> =
+        dao.shoppingItems().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     var tab by mutableStateOf(Tab.CALENDAR)
     val stack = mutableStateListOf<Screen>()

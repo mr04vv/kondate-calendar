@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,9 +43,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,14 +61,18 @@ import com.github.mr04vv.kondatecalendar.data.Dish
 import com.github.mr04vv.kondatecalendar.data.Genre
 import com.github.mr04vv.kondatecalendar.data.Meal
 import com.github.mr04vv.kondatecalendar.domain.ListRow
+import com.github.mr04vv.kondatecalendar.domain.MONTH_PAGE_COUNT
 import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
 import com.github.mr04vv.kondatecalendar.domain.listRows
 import com.github.mr04vv.kondatecalendar.domain.monthGrid
+import com.github.mr04vv.kondatecalendar.domain.monthOfPage
+import com.github.mr04vv.kondatecalendar.domain.monthPage
 import com.github.mr04vv.kondatecalendar.domain.weekOf
 import com.github.mr04vv.kondatecalendar.domain.weekStart
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlinx.coroutines.launch
 
 private enum class CalendarMode(val label: String) { GRID("格子"), LIST("リスト") }
 
@@ -86,8 +93,9 @@ fun CalendarScreen(
 ) {
     val today = remember { LocalDate.now() }
     var mode by rememberSaveable { mutableStateOf(CalendarMode.GRID) }
-    var monthIndex by rememberSaveable { mutableIntStateOf(YearMonth.from(today).let { it.year * MONTHS + it.monthValue - 1 }) }
-    val month = YearMonth.of(monthIndex / MONTHS, monthIndex % MONTHS + 1)
+    val pagerState = rememberPagerState(initialPage = monthPage(YearMonth.from(today))) { MONTH_PAGE_COUNT }
+    val scope = rememberCoroutineScope()
+    val month = monthOfPage(pagerState.settledPage)
     var focus by rememberSaveable { mutableStateOf(Meal.DINNER) }
 
     val rows = remember(today) { listRows(today.minusWeeks(LIST_WEEKS_BEFORE), today.plusWeeks(LIST_WEEKS_AFTER)) }
@@ -116,10 +124,10 @@ fun CalendarScreen(
             )
             Spacer(Modifier.weight(1f))
             if (mode == CalendarMode.GRID) {
-                IconButton(onClick = { monthIndex-- }) {
+                IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.targetPage - 1) } }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "前の月")
                 }
-                IconButton(onClick = { monthIndex++ }) {
+                IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.targetPage + 1) } }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "次の月")
                 }
             }
@@ -135,18 +143,16 @@ fun CalendarScreen(
             }
         }
         when (mode) {
-            CalendarMode.GRID -> MonthGrid(month, today, plan, focus, onFocus = { focus = it }, onTapSlot)
+            CalendarMode.GRID -> MonthGrid(pagerState, today, plan, focus, onFocus = { focus = it }, onTapSlot)
             CalendarMode.LIST -> PlanList(rows, listState, today, plan, onTapSlot, onAddToShopping)
         }
     }
 }
 
-private const val MONTHS = 12
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun MonthGrid(
-    month: YearMonth,
+    pagerState: PagerState,
     today: LocalDate,
     plan: Map<SlotKey, Dish>,
     focus: Meal,
@@ -177,19 +183,23 @@ private fun MonthGrid(
                 )
             }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            monthGrid(month).chunked(DayOfWeek.entries.size).forEach { week ->
-                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    week.forEach { date ->
-                        GridCell(
-                            date = date,
-                            inMonth = YearMonth.from(date) == month,
-                            isToday = date == today,
-                            plan = plan,
-                            focus = focus,
-                            onTap = { onTapSlot(SlotKey(date, focus)) },
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                        )
+        // Only the date cells slide; the chips, weekday labels and legend stay put.
+        HorizontalPager(pagerState, Modifier.weight(1f)) { page ->
+            val month = monthOfPage(page)
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                monthGrid(month).chunked(DayOfWeek.entries.size).forEach { week ->
+                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        week.forEach { date ->
+                            GridCell(
+                                date = date,
+                                inMonth = YearMonth.from(date) == month,
+                                isToday = date == today,
+                                plan = plan,
+                                focus = focus,
+                                onTap = { onTapSlot(SlotKey(date, focus)) },
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                        }
                     }
                 }
             }
