@@ -42,13 +42,15 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.mr04vv.kondatecalendar.data.ShoppingItem
+import com.github.mr04vv.kondatecalendar.domain.ShoppingGroup
+import com.github.mr04vv.kondatecalendar.domain.groupShoppingList
 import com.github.mr04vv.kondatecalendar.domain.keepShoppingOrder
 
 @Composable
 fun ShoppingScreen(
     items: List<ShoppingItem>,
-    onToggle: (ShoppingItem) -> Unit,
-    onDelete: (ShoppingItem) -> Unit,
+    onToggle: (ShoppingGroup) -> Unit,
+    onDelete: (ShoppingGroup) -> Unit,
     onDeleteChecked: () -> Unit,
     onAdd: (name: String, amount: String) -> Unit,
 ) {
@@ -57,11 +59,12 @@ fun ShoppingScreen(
     // Rows stay where they are while this tab is shown, so checking one does not scroll the list.
     // Plain remember: leaving the tab drops it, and the DB order (checked rows last) returns.
     val order = remember { mutableListOf<Long>() }
+    // Rows are kept in place first, then grouped: a group sits where its first row is.
     val shown = remember(items) {
-        keepShoppingOrder(order, items).also { rows ->
-            order.clear()
-            rows.mapTo(order) { it.id }
-        }
+        val rows = keepShoppingOrder(order, items)
+        order.clear()
+        rows.mapTo(order) { it.id }
+        groupShoppingList(rows)
     }
     fun add() {
         if (name.isBlank()) return
@@ -116,13 +119,13 @@ fun ShoppingScreen(
             )
         }
         LazyColumn(Modifier.fillMaxSize().padding(top = 8.dp)) {
-            items(shown, key = { it.id }) { item -> ShoppingRow(item, onToggle, onDelete) }
+            items(shown, key = { it.items.first().id }) { item -> ShoppingRow(item, onToggle, onDelete) }
         }
     }
 }
 
 @Composable
-private fun ShoppingRow(item: ShoppingItem, onToggle: (ShoppingItem) -> Unit, onDelete: (ShoppingItem) -> Unit) {
+private fun ShoppingRow(item: ShoppingGroup, onToggle: (ShoppingGroup) -> Unit, onDelete: (ShoppingGroup) -> Unit) {
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value != SwipeToDismissBoxValue.Settled) onDelete(item)
@@ -149,7 +152,12 @@ private fun ShoppingRow(item: ShoppingItem, onToggle: (ShoppingItem) -> Unit, on
                 Checkbox(checked = item.checked, onCheckedChange = { onToggle(item) })
                 val faded = if (item.checked) colors.onSurfaceVariant else colors.onBackground
                 val decoration = if (item.checked) TextDecoration.LineThrough else null
-                Text(item.name, fontSize = 16.sp, color = faded, textDecoration = decoration, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                    Text(item.name, fontSize = 16.sp, color = faded, textDecoration = decoration)
+                    if (item.sources.isNotEmpty()) {
+                        Text(item.sources.joinToString("・"), fontSize = 12.sp, color = colors.onSurfaceVariant)
+                    }
+                }
                 Text(
                     item.amount,
                     fontSize = 14.sp,

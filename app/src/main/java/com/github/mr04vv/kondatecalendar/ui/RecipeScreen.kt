@@ -36,7 +36,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.mr04vv.kondatecalendar.data.Dish
-import com.github.mr04vv.kondatecalendar.data.Ingredient
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -45,7 +44,7 @@ fun RecipeScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onToggleCanCook: () -> Unit,
-    onAddToShopping: (List<Ingredient>) -> Unit,
+    onAddToShopping: () -> Unit,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -81,7 +80,7 @@ fun RecipeScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             Button(
-                onClick = { onAddToShopping(dish.ingredients) },
+                onClick = onAddToShopping,
                 enabled = dish.ingredients.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
             ) {

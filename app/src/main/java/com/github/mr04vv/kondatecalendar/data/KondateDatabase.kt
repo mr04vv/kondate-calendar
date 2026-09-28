@@ -16,12 +16,14 @@ import androidx.room.Update
 import androidx.room.Upsert
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.github.mr04vv.kondatecalendar.domain.mergeIntoShoppingList
+import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
+import com.github.mr04vv.kondatecalendar.domain.shoppingRowsToAdd
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
 
 class Converters {
+    // Room's KSP backend null-checks around these, so they also serve the nullable ShoppingItem.date.
     @TypeConverter fun fromDate(date: LocalDate): Long = date.toEpochDay()
     @TypeConverter fun toDate(epochDay: Long): LocalDate = LocalDate.ofEpochDay(epochDay)
 
@@ -61,7 +63,24 @@ interface KondateDao {
     suspend fun upsertSlot(slot: MealSlot)
 
     @Query("DELETE FROM meal_slot WHERE date = :date AND meal = :meal")
-    suspend fun clearSlot(date: LocalDate, meal: Meal)
+    suspend fun deleteSlot(date: LocalDate, meal: Meal)
+
+    /** Takes back the unchecked rows a slot added for any dish other than [keepDishId]; checked rows stay. */
+    @Query("DELETE FROM shopping_item WHERE date = :date AND meal = :meal AND checked = 0 AND dishId IS NOT :keepDishId")
+    suspend fun deleteOpenShoppingItemsFor(date: LocalDate, meal: Meal, keepDishId: Long?)
+
+    /** Puts a dish in a slot; the previous dish's unchecked ingredients leave the shopping list. */
+    @Transaction
+    suspend fun assignSlot(slot: MealSlot) {
+        deleteOpenShoppingItemsFor(slot.date, slot.meal, keepDishId = slot.dishId)
+        upsertSlot(slot)
+    }
+
+    @Transaction
+    suspend fun clearSlot(date: LocalDate, meal: Meal) {
+        deleteOpenShoppingItemsFor(date, meal, keepDishId = null)
+        deleteSlot(date, meal)
+    }
 
     @Query("SELECT * FROM shopping_item ORDER BY checked, id")
     fun shoppingItems(): Flow<List<ShoppingItem>>
@@ -69,25 +88,28 @@ interface KondateDao {
     @Query("SELECT * FROM shopping_item")
     suspend fun currentShoppingItems(): List<ShoppingItem>
 
-    @Upsert
-    suspend fun upsertShoppingItems(items: List<ShoppingItem>)
+    @Insert
+    suspend fun insertShoppingItems(items: List<ShoppingItem>)
 
     @Update
-    suspend fun updateShoppingItem(item: ShoppingItem)
+    suspend fun updateShoppingItems(items: List<ShoppingItem>)
 
     @Delete
-    suspend fun deleteShoppingItem(item: ShoppingItem)
+    suspend fun deleteShoppingItems(items: List<ShoppingItem>)
 
     @Query("DELETE FROM shopping_item WHERE checked = 1")
     suspend fun deleteCheckedShoppingItems()
 
+    /** Returns how many rows were added; sources already in the list add none. */
     @Transaction
-    suspend fun addToShoppingList(ingredients: List<Ingredient>) {
-        upsertShoppingItems(mergeIntoShoppingList(currentShoppingItems(), ingredients))
+    suspend fun addToShoppingList(sources: List<ShoppingSource>): Int {
+        val rows = shoppingRowsToAdd(currentShoppingItems(), sources)
+        insertShoppingItems(rows)
+        return rows.size
     }
 }
 
-@Database(entities = [Dish::class, MealSlot::class, ShoppingItem::class], version = 2)
+@Database(entities = [Dish::class, MealSlot::class, ShoppingItem::class], version = 3)
 @TypeConverters(Converters::class)
 abstract class KondateDatabase : RoomDatabase() {
     abstract fun dao(): KondateDao
@@ -103,7 +125,24 @@ abstract class KondateDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Shopping rows now record the slot or recipe they came from. Old rows carry no source and many were
+         * doubled by repeated adds, so the requester chose to start the list empty; dishes and slots are kept.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE shopping_item")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `shopping_item` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`name` TEXT NOT NULL, `amount` TEXT NOT NULL, `checked` INTEGER NOT NULL, `date` INTEGER, " +
+                        "`meal` TEXT, `dishId` INTEGER, `dishName` TEXT)",
+                )
+            }
+        }
+
         fun create(context: Context): KondateDatabase =
-            Room.databaseBuilder(context, KondateDatabase::class.java, NAME).addMigrations(MIGRATION_1_2).build()
+            Room.databaseBuilder(context, KondateDatabase::class.java, NAME)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .build()
     }
 }

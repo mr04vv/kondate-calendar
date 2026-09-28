@@ -9,10 +9,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.mr04vv.kondatecalendar.KondateApp
 import com.github.mr04vv.kondatecalendar.data.Dish
-import com.github.mr04vv.kondatecalendar.data.Ingredient
 import com.github.mr04vv.kondatecalendar.data.Meal
 import com.github.mr04vv.kondatecalendar.data.MealSlot
 import com.github.mr04vv.kondatecalendar.data.ShoppingItem
+import com.github.mr04vv.kondatecalendar.domain.ShoppingGroup
+import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
 import com.github.mr04vv.kondatecalendar.domain.parsePresets
 import com.github.mr04vv.kondatecalendar.domain.presetsToInsert
 import kotlinx.coroutines.Dispatchers
@@ -26,9 +27,11 @@ import java.time.LocalDate
 
 data class SlotKey(val date: LocalDate, val meal: Meal)
 
-/** Ingredients of every dish planned on [dates], in date and meal order. */
-fun Map<SlotKey, Dish>.ingredientsOn(dates: List<LocalDate>): List<Ingredient> =
-    dates.flatMap { date -> Meal.entries.mapNotNull { this[SlotKey(date, it)] } }.flatMap { it.ingredients }
+/** Every slot planned on [dates], in date and meal order. */
+fun Map<SlotKey, Dish>.sourcesOn(dates: List<LocalDate>): List<ShoppingSource.Slot> =
+    dates.flatMap { date ->
+        Meal.entries.mapNotNull { meal -> this[SlotKey(date, meal)]?.let { ShoppingSource.Slot(date, meal, it) } }
+    }
 
 enum class Tab { CALENDAR, TODAY, SHOPPING }
 
@@ -95,7 +98,7 @@ class KondateViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun assign(key: SlotKey, dishId: Long) = viewModelScope.launch {
-        dao.upsertSlot(MealSlot(key.date, key.meal, dishId))
+        dao.assignSlot(MealSlot(key.date, key.meal, dishId))
         picking = null
     }
 
@@ -106,17 +109,20 @@ class KondateViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleCanCook(dish: Dish) = viewModelScope.launch { dao.updateDish(dish.copy(canCook = !dish.canCook)) }
 
-    fun addToShopping(ingredients: List<Ingredient>) = viewModelScope.launch {
-        dao.addToShoppingList(ingredients)
+    /** [onAdded] receives how many rows went in; zero means every source was already in the list. */
+    fun addToShopping(sources: List<ShoppingSource>, onAdded: (Int) -> Unit) = viewModelScope.launch {
+        onAdded(dao.addToShoppingList(sources))
     }
 
     fun addManualItem(name: String, amount: String) = viewModelScope.launch {
-        dao.upsertShoppingItems(listOf(ShoppingItem(name = name.trim(), amount = amount.trim(), manual = true)))
+        dao.insertShoppingItems(listOf(ShoppingItem(name = name.trim(), amount = amount.trim())))
     }
 
-    fun toggle(item: ShoppingItem) = viewModelScope.launch { dao.updateShoppingItem(item.copy(checked = !item.checked)) }
+    fun toggle(group: ShoppingGroup) = viewModelScope.launch {
+        dao.updateShoppingItems(group.items.map { it.copy(checked = !group.checked) })
+    }
 
-    fun delete(item: ShoppingItem) = viewModelScope.launch { dao.deleteShoppingItem(item) }
+    fun delete(group: ShoppingGroup) = viewModelScope.launch { dao.deleteShoppingItems(group.items) }
 
     fun deleteChecked() = viewModelScope.launch { dao.deleteCheckedShoppingItems() }
 
@@ -124,7 +130,7 @@ class KondateViewModel(app: Application) : AndroidViewModel(app) {
         val previousPhoto = dishById(dish.id)?.photoPath
         val id = if (dish.id == 0L) dao.insertDish(dish) else dish.id.also { dao.updateDish(dish) }
         if (previousPhoto != null && previousPhoto != dish.photoPath) File(previousPhoto).delete()
-        if (assignTo != null) dao.upsertSlot(MealSlot(assignTo.date, assignTo.meal, id))
+        if (assignTo != null) dao.assignSlot(MealSlot(assignTo.date, assignTo.meal, id))
         back()
     }
 
