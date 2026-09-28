@@ -31,6 +31,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.mr04vv.kondatecalendar.data.ShoppingItem
+import com.github.mr04vv.kondatecalendar.domain.keepShoppingOrder
 
 @Composable
 fun ShoppingScreen(
@@ -51,6 +53,15 @@ fun ShoppingScreen(
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var amount by rememberSaveable { mutableStateOf("") }
+    // Rows stay where they are while this tab is shown, so checking one does not scroll the list.
+    // Plain remember: leaving the tab drops it, and the DB order (checked rows last) returns.
+    val order = remember { mutableListOf<Long>() }
+    val shown = remember(items) {
+        keepShoppingOrder(order, items).also { rows ->
+            order.clear()
+            rows.mapTo(order) { it.id }
+        }
+    }
     fun add() {
         if (name.isBlank()) return
         onAdd(name, amount)
@@ -99,7 +110,7 @@ fun ShoppingScreen(
             )
         }
         LazyColumn(Modifier.fillMaxSize().padding(top = 8.dp)) {
-            items(items, key = { it.id }) { item -> ShoppingRow(item, onToggle, onDelete) }
+            items(shown, key = { it.id }) { item -> ShoppingRow(item, onToggle, onDelete) }
         }
     }
 }
