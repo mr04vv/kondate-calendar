@@ -17,10 +17,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
@@ -88,8 +89,13 @@ fun ShoppingScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { add() }),
             )
-            IconButton(onClick = ::add, enabled = name.isNotBlank()) {
-                Icon(Icons.Default.Add, contentDescription = "追加")
+            Button(
+                onClick = ::add,
+                enabled = name.isNotBlank(),
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Text("追加", modifier = Modifier.padding(start = 8.dp))
             }
         }
         if (items.isEmpty()) {
