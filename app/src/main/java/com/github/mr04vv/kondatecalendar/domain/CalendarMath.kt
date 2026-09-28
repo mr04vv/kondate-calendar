@@ -29,4 +29,16 @@ fun listRows(from: LocalDate, to: LocalDate): List<ListRow> =
         .flatMap { monday -> sequenceOf(ListRow.WeekHeader(monday)) + weekOf(monday).map(ListRow::Day) }
         .toList()
 
+/** Pager index of [month] in the swipeable grid: consecutive months get consecutive pages, starting at January of year 1. */
+fun monthPage(month: YearMonth): Int = (month.year - FIRST_PAGE_YEAR) * MONTHS_IN_YEAR + month.monthValue - 1
+
+/** Inverse of [monthPage]. */
+fun monthOfPage(page: Int): YearMonth = YearMonth.of(FIRST_PAGE_YEAR + page / MONTHS_IN_YEAR, page % MONTHS_IN_YEAR + 1)
+
 const val DAYS_IN_WEEK = 7L
+private const val MONTHS_IN_YEAR = 12
+private const val FIRST_PAGE_YEAR = 1
+private const val LAST_PAGE_YEAR = 9999
+
+/** Number of pages in the month pager: every month from year [FIRST_PAGE_YEAR] to [LAST_PAGE_YEAR]. */
+const val MONTH_PAGE_COUNT = (LAST_PAGE_YEAR - FIRST_PAGE_YEAR + 1) * MONTHS_IN_YEAR
