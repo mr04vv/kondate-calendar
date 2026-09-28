@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "kondate-calendar"
-include(":app")
+include(":app", ":shared")
