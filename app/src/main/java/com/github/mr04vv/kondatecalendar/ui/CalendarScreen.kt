@@ -56,9 +56,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.mr04vv.kondatecalendar.data.Dish
 import com.github.mr04vv.kondatecalendar.data.Genre
-import com.github.mr04vv.kondatecalendar.data.Ingredient
 import com.github.mr04vv.kondatecalendar.data.Meal
 import com.github.mr04vv.kondatecalendar.domain.ListRow
+import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
 import com.github.mr04vv.kondatecalendar.domain.listRows
 import com.github.mr04vv.kondatecalendar.domain.monthGrid
 import com.github.mr04vv.kondatecalendar.domain.weekOf
@@ -82,7 +82,7 @@ private val DateColumnWidth = 52.dp
 fun CalendarScreen(
     plan: Map<SlotKey, Dish>,
     onTapSlot: (SlotKey) -> Unit,
-    onAddToShopping: (List<Ingredient>) -> Unit,
+    onAddToShopping: (List<ShoppingSource>) -> Unit,
 ) {
     val today = remember { LocalDate.now() }
     var mode by rememberSaveable { mutableStateOf(CalendarMode.GRID) }
@@ -282,7 +282,7 @@ private fun PlanList(
     today: LocalDate,
     plan: Map<SlotKey, Dish>,
     onTapSlot: (SlotKey) -> Unit,
-    onAddToShopping: (List<Ingredient>) -> Unit,
+    onAddToShopping: (List<ShoppingSource>) -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
@@ -314,9 +314,9 @@ private fun PlanList(
 }
 
 @Composable
-private fun WeekHeader(monday: LocalDate, plan: Map<SlotKey, Dish>, onAddToShopping: (List<Ingredient>) -> Unit) {
+private fun WeekHeader(monday: LocalDate, plan: Map<SlotKey, Dish>, onAddToShopping: (List<ShoppingSource>) -> Unit) {
     val week = weekOf(monday)
-    val ingredients = plan.ingredientsOn(week)
+    val sources = plan.sourcesOn(week)
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
             "${monday.monthValue}/${monday.dayOfMonth} – ${week.last().monthValue}/${week.last().dayOfMonth}",
@@ -325,7 +325,7 @@ private fun WeekHeader(monday: LocalDate, plan: Map<SlotKey, Dish>, onAddToShopp
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = { onAddToShopping(ingredients) }, enabled = ingredients.isNotEmpty()) {
+        TextButton(onClick = { onAddToShopping(sources) }, enabled = sources.any { it.dish.ingredients.isNotEmpty() }) {
             Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(16.dp))
             Text("この週の材料を買い物リストへ", fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp))
         }

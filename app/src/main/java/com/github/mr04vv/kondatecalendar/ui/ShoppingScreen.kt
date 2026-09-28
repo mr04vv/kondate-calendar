@@ -39,13 +39,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.github.mr04vv.kondatecalendar.data.ShoppingItem
+import com.github.mr04vv.kondatecalendar.domain.ShoppingGroup
 
 @Composable
 fun ShoppingScreen(
-    items: List<ShoppingItem>,
-    onToggle: (ShoppingItem) -> Unit,
-    onDelete: (ShoppingItem) -> Unit,
+    items: List<ShoppingGroup>,
+    onToggle: (ShoppingGroup) -> Unit,
+    onDelete: (ShoppingGroup) -> Unit,
     onDeleteChecked: () -> Unit,
     onAdd: (name: String, amount: String) -> Unit,
 ) {
@@ -99,13 +99,13 @@ fun ShoppingScreen(
             )
         }
         LazyColumn(Modifier.fillMaxSize().padding(top = 8.dp)) {
-            items(items, key = { it.id }) { item -> ShoppingRow(item, onToggle, onDelete) }
+            items(items, key = { it.items.first().id }) { item -> ShoppingRow(item, onToggle, onDelete) }
         }
     }
 }
 
 @Composable
-private fun ShoppingRow(item: ShoppingItem, onToggle: (ShoppingItem) -> Unit, onDelete: (ShoppingItem) -> Unit) {
+private fun ShoppingRow(item: ShoppingGroup, onToggle: (ShoppingGroup) -> Unit, onDelete: (ShoppingGroup) -> Unit) {
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value != SwipeToDismissBoxValue.Settled) onDelete(item)
@@ -132,7 +132,12 @@ private fun ShoppingRow(item: ShoppingItem, onToggle: (ShoppingItem) -> Unit, on
                 Checkbox(checked = item.checked, onCheckedChange = { onToggle(item) })
                 val faded = if (item.checked) colors.onSurfaceVariant else colors.onBackground
                 val decoration = if (item.checked) TextDecoration.LineThrough else null
-                Text(item.name, fontSize = 16.sp, color = faded, textDecoration = decoration, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                    Text(item.name, fontSize = 16.sp, color = faded, textDecoration = decoration)
+                    if (item.sources.isNotEmpty()) {
+                        Text(item.sources.joinToString("・"), fontSize = 12.sp, color = colors.onSurfaceVariant)
+                    }
+                }
                 Text(
                     item.amount,
                     fontSize = 14.sp,

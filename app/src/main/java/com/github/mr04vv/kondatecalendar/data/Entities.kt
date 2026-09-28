@@ -75,11 +75,19 @@ data class MealSlot(
     val dishId: Long,
 )
 
+/**
+ * One ingredient from one source. [dishId] is null for a row typed in by hand; [date] and [meal] are null unless the
+ * row came from a planned slot, so clearing that slot can take its unchecked rows back out.
+ */
 @Entity(tableName = "shopping_item")
 data class ShoppingItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val amount: String,
     val checked: Boolean = false,
-    val manual: Boolean = false,
+    val date: LocalDate? = null,
+    val meal: Meal? = null,
+    val dishId: Long? = null,
+    /** The dish name at the time the row was added, shown as its source. */
+    val dishName: String? = null,
 )

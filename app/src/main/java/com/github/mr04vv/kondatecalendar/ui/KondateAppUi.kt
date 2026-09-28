@@ -30,7 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.github.mr04vv.kondatecalendar.data.Ingredient
+import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
 import com.github.mr04vv.kondatecalendar.feedback.FeedbackScreen
 import kotlinx.coroutines.launch
 
@@ -59,9 +59,11 @@ fun KondateAppUi(vm: KondateViewModel) {
     val scope = rememberCoroutineScope()
     // Keeps each tab's rememberSaveable state (calendar mode, scroll, day) while another tab is shown.
     val tabStates = rememberSaveableStateHolder()
-    val addToShopping: (List<Ingredient>) -> Unit = { ingredients ->
-        vm.addToShopping(ingredients)
-        scope.launch { snackbar.showSnackbar("材料 ${ingredients.size} 品を買い物リストに追加しました") }
+    val addToShopping: (List<ShoppingSource>) -> Unit = { sources ->
+        vm.addToShopping(sources) { added ->
+            val message = if (added == 0) "すでに買い物リストに入っています" else "材料 $added 品を買い物リストに追加しました"
+            scope.launch { snackbar.showSnackbar(message) }
+        }
     }
 
     BackHandler(enabled = vm.stack.isNotEmpty()) { vm.back() }
@@ -124,7 +126,7 @@ fun KondateAppUi(vm: KondateViewModel) {
                                 onBack = vm::back,
                                 onEdit = { vm.open(Screen.Edit(dish.id)) },
                                 onToggleCanCook = { vm.toggleCanCook(dish) },
-                                onAddToShopping = addToShopping,
+                                onAddToShopping = { addToShopping(listOf(ShoppingSource.Recipe(dish))) },
                             )
                         }
                     }

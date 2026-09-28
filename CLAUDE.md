@@ -13,7 +13,7 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 
 ./gradlew assembleDebug                 # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew testDebugUnitTest             # JVM ユニットテスト（全件）
-./gradlew testDebugUnitTest --tests "com.github.mr04vv.kondatecalendar.domain.ShoppingMergeTest"
+./gradlew testDebugUnitTest --tests "com.github.mr04vv.kondatecalendar.domain.ShoppingListTest"
 ./gradlew testDebugUnitTest --tests "*DishFilterTest.recommend*"
 ./gradlew lintDebug                     # AGP 標準の lint（独自設定なし）
 ```

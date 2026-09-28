@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.github.mr04vv.kondatecalendar.data.Dish
 import com.github.mr04vv.kondatecalendar.data.Ingredient
 import com.github.mr04vv.kondatecalendar.data.Meal
+import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
 import java.time.LocalDate
 
 private val CardShape = RoundedCornerShape(12.dp)
@@ -51,12 +52,13 @@ fun TodayScreen(
     plan: Map<SlotKey, Dish>,
     onOpenRecipe: (Dish) -> Unit,
     onPick: (SlotKey) -> Unit,
-    onAddToShopping: (List<Ingredient>) -> Unit,
+    onAddToShopping: (List<ShoppingSource>) -> Unit,
 ) {
     val today = LocalDate.now()
     var epochDay by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
     val date = LocalDate.ofEpochDay(epochDay)
-    val ingredients = plan.ingredientsOn(listOf(date))
+    val sources = plan.sourcesOn(listOf(date))
+    val ingredients = sources.flatMap { it.dish.ingredients }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
@@ -98,7 +100,7 @@ fun TodayScreen(
             Spacer(Modifier.height(4.dp))
         }
         Button(
-            onClick = { onAddToShopping(ingredients) },
+            onClick = { onAddToShopping(sources) },
             enabled = ingredients.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).height(48.dp),
         ) {
