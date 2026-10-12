@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,18 +42,32 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,17 +100,24 @@ private const val LIST_WEEKS_BEFORE = 26L
 private const val LIST_WEEKS_AFTER = 52L
 private const val OUTSIDE_MONTH_ALPHA = 0.5f
 private const val GRID_NAME_MAX_LINES = 3
+private const val DRAGGED_ALPHA = 0.4f
 private val CellShape = RoundedCornerShape(6.dp)
 private val SlotShape = RoundedCornerShape(4.dp)
 private val ListRowHeight = 48.dp
 private val DateColumnWidth = 52.dp
+private val DropTargetBorder = 2.dp
+private val GhostLift = 24.dp
 
 @Composable
 fun CalendarScreen(
     plan: Map<SlotKey, Dish>,
     onTapSlot: (SlotKey) -> Unit,
+    onMoveSlot: (from: SlotKey, to: SlotKey) -> Unit,
     onAddToShopping: (List<ShoppingSource>) -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
+    val onMove by rememberUpdatedState(onMoveSlot)
+    val drag = remember(haptics) { SlotDrag(haptics) { from, to -> onMove(from, to) } }
     val today = remember { today() }
     var mode by rememberSaveable { mutableStateOf(CalendarMode.GRID) }
     val pagerState = rememberPagerState(initialPage = monthPage(today.yearMonth)) { MONTH_PAGE_COUNT }
@@ -115,42 +137,45 @@ fun CalendarScreen(
     }
     val shownMonth = if (mode == CalendarMode.GRID) month else listMonth
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("${shownMonth.month.number}月", style = HeadingLarge, color = MaterialTheme.colorScheme.onBackground)
-            Text(
-                "${shownMonth.year}",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp, top = 8.dp),
-            )
-            Spacer(Modifier.weight(1f))
-            if (mode == CalendarMode.GRID) {
-                IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.targetPage - 1) } }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "前の月")
+    Box(Modifier.fillMaxSize().onGloballyPositioned { drag.origin = it.positionInRoot() }) {
+        Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${shownMonth.month.number}月", style = HeadingLarge, color = MaterialTheme.colorScheme.onBackground)
+                Text(
+                    "${shownMonth.year}",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp, top = 8.dp),
+                )
+                Spacer(Modifier.weight(1f))
+                if (mode == CalendarMode.GRID) {
+                    IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.targetPage - 1) } }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "前の月")
+                    }
+                    IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.targetPage + 1) } }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "次の月")
+                    }
                 }
-                IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.targetPage + 1) } }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "次の月")
+                SingleChoiceSegmentedButtonRow(Modifier.width(150.dp)) {
+                    CalendarMode.entries.forEachIndexed { i, m ->
+                        SegmentedButton(
+                            selected = mode == m,
+                            onClick = { mode = m },
+                            shape = SegmentedButtonDefaults.itemShape(i, CalendarMode.entries.size),
+                            icon = {},
+                        ) { Text(m.label, fontSize = 13.sp) }
+                    }
                 }
             }
-            SingleChoiceSegmentedButtonRow(Modifier.width(150.dp)) {
-                CalendarMode.entries.forEachIndexed { i, m ->
-                    SegmentedButton(
-                        selected = mode == m,
-                        onClick = { mode = m },
-                        shape = SegmentedButtonDefaults.itemShape(i, CalendarMode.entries.size),
-                        icon = {},
-                    ) { Text(m.label, fontSize = 13.sp) }
-                }
+            when (mode) {
+                CalendarMode.GRID -> MonthGrid(pagerState, today, plan, focus, onFocus = { focus = it }, onTapSlot, drag)
+                CalendarMode.LIST -> PlanList(rows, listState, today, plan, onTapSlot, drag, onAddToShopping)
             }
         }
-        when (mode) {
-            CalendarMode.GRID -> MonthGrid(pagerState, today, plan, focus, onFocus = { focus = it }, onTapSlot)
-            CalendarMode.LIST -> PlanList(rows, listState, today, plan, onTapSlot, onAddToShopping)
-        }
+        drag.from?.let { plan[it] }?.let { DragGhost(it, drag) }
     }
 }
 
@@ -163,6 +188,7 @@ private fun MonthGrid(
     focus: Meal,
     onFocus: (Meal) -> Unit,
     onTapSlot: (SlotKey) -> Unit,
+    drag: SlotDrag,
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Row(
@@ -202,6 +228,7 @@ private fun MonthGrid(
                                 plan = plan,
                                 focus = focus,
                                 onTap = { onTapSlot(SlotKey(date, focus)) },
+                                drag = drag,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                             )
                         }
@@ -231,17 +258,27 @@ private fun GridCell(
     plan: Map<SlotKey, Dish>,
     focus: Meal,
     onTap: () -> Unit,
+    drag: SlotDrag,
     modifier: Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
-    val dish = plan[SlotKey(date, focus)]
+    val key = SlotKey(date, focus)
+    val dish = plan[key]
+    val target = rememberDropTarget(drag, key)
+    val hovered = drag.hovers(key)
     Column(
         modifier
             .alpha(if (inMonth) 1f else OUTSIDE_MONTH_ALPHA)
+            .alpha(if (drag.from == key) DRAGGED_ALPHA else 1f)
             .clip(CellShape)
             .background(colors.surface)
-            .border(1.dp, colors.outlineVariant, CellShape)
+            .border(
+                if (hovered) DropTargetBorder else 1.dp,
+                if (hovered) colors.primary else colors.outlineVariant,
+                CellShape,
+            )
             .clickable(onClickLabel = "${date.shortLabel()}${focus.label}の献立") { onTap() }
+            .dragSlot(drag, target, draggable = dish != null)
             .padding(3.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
@@ -297,6 +334,7 @@ private fun PlanList(
     today: LocalDate,
     plan: Map<SlotKey, Dish>,
     onTapSlot: (SlotKey) -> Unit,
+    drag: SlotDrag,
     onAddToShopping: (List<ShoppingSource>) -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -321,7 +359,7 @@ private fun PlanList(
             }) { row ->
                 when (row) {
                     is ListRow.WeekHeader -> WeekHeader(row.monday, today, plan, onAddToShopping)
-                    is ListRow.Day -> DayRow(row.date, row.date == today, plan, onTapSlot)
+                    is ListRow.Day -> DayRow(row.date, row.date == today, plan, onTapSlot, drag)
                 }
             }
         }
@@ -354,7 +392,7 @@ private fun WeekHeader(
 }
 
 @Composable
-private fun DayRow(date: LocalDate, isToday: Boolean, plan: Map<SlotKey, Dish>, onTapSlot: (SlotKey) -> Unit) {
+private fun DayRow(date: LocalDate, isToday: Boolean, plan: Map<SlotKey, Dish>, onTapSlot: (SlotKey) -> Unit, drag: SlotDrag) {
     val colors = MaterialTheme.colorScheme
     Row(
         Modifier.fillMaxWidth().height(ListRowHeight).padding(vertical = 2.dp),
@@ -384,11 +422,24 @@ private fun DayRow(date: LocalDate, isToday: Boolean, plan: Map<SlotKey, Dish>, 
         Meal.entries.forEach { meal ->
             val key = SlotKey(date, meal)
             val dish = plan[key]
+            val target = rememberDropTarget(drag, key)
+            val hovered = drag.hovers(key)
             Row(
-                Modifier.weight(1f).fillMaxHeight().heightIn(min = 44.dp).clip(SlotShape)
+                Modifier.weight(1f).fillMaxHeight().heightIn(min = 44.dp)
+                    .alpha(if (drag.from == key) DRAGGED_ALPHA else 1f)
+                    .clip(SlotShape)
                     .background(dish?.genre?.color?.copy(alpha = GENRE_TINT_ALPHA) ?: Color.Transparent)
-                    .border(1.dp, if (dish == null) colors.outlineVariant else Color.Transparent, SlotShape)
-                    .clickable(onClickLabel = "${date.shortLabel()}${meal.label}の献立") { onTapSlot(key) },
+                    .border(
+                        if (hovered) DropTargetBorder else 1.dp,
+                        when {
+                            hovered -> colors.primary
+                            dish == null -> colors.outlineVariant
+                            else -> Color.Transparent
+                        },
+                        SlotShape,
+                    )
+                    .clickable(onClickLabel = "${date.shortLabel()}${meal.label}の献立") { onTapSlot(key) }
+                    .dragSlot(drag, target, draggable = dish != null),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.width(3.dp).fillMaxHeight().background(dish?.genre?.color ?: Color.Transparent))
@@ -403,4 +454,99 @@ private fun DayRow(date: LocalDate, isToday: Boolean, plan: Map<SlotKey, Dish>, 
             }
         }
     }
+}
+
+/**
+ * A planned slot picked up by a long press and carried over the other slots on screen. Each slot on screen registers its
+ * layout under its own token, so a date shown on two pager pages at once stays a target while either page lives.
+ */
+private class SlotDrag(private val haptics: HapticFeedback, private val onDrop: (from: SlotKey, to: SlotKey) -> Unit) {
+    // ponytail: only slots laid out on screen are targets; dragging to an edge does not scroll the list or the month.
+    val targets = mutableMapOf<State<SlotKey>, LayoutCoordinates>()
+
+    /** Where the calendar sits in the root, so the ghost can be drawn under the finger. */
+    var origin = Offset.Zero
+
+    var from by mutableStateOf<SlotKey?>(null)
+        private set
+
+    /** The finger in root coordinates. */
+    var pointer by mutableStateOf(Offset.Zero)
+        private set
+
+    private val target: SlotKey? by derivedStateOf {
+        if (from == null) return@derivedStateOf null
+        targets.entries.firstOrNull { (_, layout) -> layout.isAttached && layout.boundsInRoot().contains(pointer) }?.key?.value
+    }
+
+    /** Whether the dragged dish would land on [key] if dropped now. */
+    fun hovers(key: SlotKey): Boolean = target == key && key != from
+
+    fun start(slot: State<SlotKey>, at: Offset) {
+        val layout = targets[slot] ?: return
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        from = slot.value
+        pointer = layout.localToRoot(at)
+    }
+
+    fun moveBy(delta: Offset) {
+        pointer += delta
+    }
+
+    fun end() {
+        val from = from ?: return
+        val to = target
+        cancel()
+        if (to != null && to != from) onDrop(from, to)
+    }
+
+    fun cancel() {
+        from = null
+    }
+}
+
+/** Keeps [key] registered as a drop target while this slot is on screen; the returned token stands for the slot. */
+@Composable
+private fun rememberDropTarget(drag: SlotDrag, key: SlotKey): State<SlotKey> {
+    val slot = rememberUpdatedState(key)
+    DisposableEffect(drag, slot) { onDispose { drag.targets.remove(slot) } }
+    return slot
+}
+
+/** Records where [slot] is laid out and, when it holds a dish, lets a long press pick it up. */
+private fun Modifier.dragSlot(drag: SlotDrag, slot: State<SlotKey>, draggable: Boolean): Modifier =
+    onGloballyPositioned { drag.targets[slot] = it }.then(
+        if (!draggable) {
+            Modifier
+        } else {
+            // After the clickable so a long press released without moving does not also count as a tap.
+            Modifier.pointerInput(drag, slot) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { drag.start(slot, it) },
+                    onDragEnd = drag::end,
+                    onDragCancel = drag::cancel,
+                    onDrag = { _, delta -> drag.moveBy(delta) },
+                )
+            }
+        },
+    )
+
+/** The dragged dish, floating just above the finger. */
+@Composable
+private fun DragGhost(dish: Dish, drag: SlotDrag) {
+    Text(
+        "${dish.emoji} ${dish.name}",
+        fontSize = 13.sp,
+        maxLines = 1,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .graphicsLayer {
+                translationX = drag.pointer.x - drag.origin.x - size.width / 2
+                translationY = drag.pointer.y - drag.origin.y - size.height - GhostLift.toPx()
+            }
+            .shadow(4.dp, SlotShape)
+            .background(MaterialTheme.colorScheme.surface, SlotShape)
+            .border(1.dp, dish.genre.color, SlotShape)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    )
 }
