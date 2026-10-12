@@ -105,6 +105,10 @@ class KondateViewModel(private val dao: KondateDao) : ViewModel() {
         slotMenu = null
     }
 
+    fun moveSlot(from: SlotKey, to: SlotKey) = viewModelScope.launch {
+        dao.moveSlot(from.date, from.meal, to.date, to.meal)
+    }
+
     fun toggleCanCook(dish: Dish) = viewModelScope.launch { dao.updateDish(dish.copy(canCook = !dish.canCook)) }
 
     /** [onAdded] receives how many rows went in; zero means every source was already in the list. */

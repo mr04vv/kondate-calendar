@@ -21,6 +21,7 @@ import androidx.sqlite.execSQL
 import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
 import com.github.mr04vv.kondatecalendar.domain.expiredShoppingRows
 import com.github.mr04vv.kondatecalendar.domain.shoppingRowsToAdd
+import com.github.mr04vv.kondatecalendar.domain.slotMove
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -64,6 +65,9 @@ interface KondateDao {
     @Query("SELECT * FROM meal_slot")
     fun slots(): Flow<List<MealSlot>>
 
+    @Query("SELECT * FROM meal_slot WHERE date = :date AND meal = :meal")
+    suspend fun slot(date: LocalDate, meal: Meal): MealSlot?
+
     @Upsert
     suspend fun upsertSlot(slot: MealSlot)
 
@@ -85,6 +89,16 @@ interface KondateDao {
     suspend fun clearSlot(date: LocalDate, meal: Meal) {
         deleteOpenShoppingItemsFor(date, meal, keepDishId = null)
         deleteSlot(date, meal)
+    }
+
+    /** Drops one planned slot onto another, swapping their dishes; shopping rows added from each slot follow its dish. */
+    @Transaction
+    suspend fun moveSlot(fromDate: LocalDate, fromMeal: Meal, toDate: LocalDate, toMeal: Meal) {
+        val from = slot(fromDate, fromMeal) ?: return
+        val move = slotMove(from, toDate, toMeal, slot(toDate, toMeal)?.dishId, currentShoppingItems())
+        move.vacated?.let { deleteSlot(it.date, it.meal) }
+        move.slots.forEach { upsertSlot(it) }
+        updateShoppingItems(move.items)
     }
 
     @Query("SELECT * FROM shopping_item ORDER BY checked, id")

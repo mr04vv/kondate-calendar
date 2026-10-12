@@ -94,7 +94,12 @@ fun KondateAppUi(vm: KondateViewModel) {
             Box(Modifier.padding(padding)) {
                 tabStates.SaveableStateProvider(vm.tab) {
                     when (vm.tab) {
-                        Tab.CALENDAR -> CalendarScreen(plan, onTapSlot = vm::tapSlot, onAddToShopping = addToShopping)
+                        Tab.CALENDAR -> CalendarScreen(
+                            plan = plan,
+                            onTapSlot = vm::tapSlot,
+                            onMoveSlot = vm::moveSlot,
+                            onAddToShopping = addToShopping,
+                        )
                         Tab.TODAY -> TodayScreen(
                             plan = plan,
                             onOpenRecipe = { vm.open(Screen.Recipe(it.id)) },
