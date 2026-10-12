@@ -1,13 +1,14 @@
 package com.github.mr04vv.kondatecalendar.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.github.mr04vv.kondatecalendar.auth.GoogleSignIn
 import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
 import com.github.mr04vv.kondatecalendar.feedback.FeedbackScreen
 import kotlinx.coroutines.launch
@@ -49,12 +51,30 @@ private val Tab.icon: ImageVector
         Tab.SHOPPING -> Icons.Default.ShoppingCart
     }
 
+/** The whole app: a notice without Firebase config, the login screen when signed out, otherwise the tabs. */
 @Composable
-fun KondateAppUi(vm: KondateViewModel) {
+fun KondateAppUi(vm: KondateViewModel, signIn: GoogleSignIn) {
+    val user by vm.user.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(vm) { vm.messages.collect { snackbar.showSnackbar(it) } }
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        when {
+            !vm.configured -> NotConfiguredScreen()
+            user == null -> LoginScreen(onSignIn = { vm.signIn(signIn) })
+            else -> SignedInUi(vm, user?.email, snackbar)
+        }
+        SnackbarHost(
+            snackbar,
+            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = SnackbarBottomOffset),
+        )
+    }
+}
+
+@Composable
+private fun SignedInUi(vm: KondateViewModel, email: String?, snackbar: SnackbarHostState) {
     val dishes by vm.dishes.collectAsStateWithLifecycle()
     val plan by vm.plan.collectAsStateWithLifecycle()
     val shopping by vm.shopping.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     // Keeps each tab's rememberSaveable state (calendar mode, scroll, day) while another tab is shown.
     val tabStates = rememberSaveableStateHolder()
@@ -81,12 +101,12 @@ fun KondateAppUi(vm: KondateViewModel) {
                             label = { Text(tab.label) },
                         )
                     }
-                    // Not a tab: opens the feedback form on top of the current tab.
+                    // Not a tab: opens the settings on top of the current tab.
                     NavigationBarItem(
                         selected = false,
-                        onClick = { vm.open(Screen.Feedback) },
-                        icon = { Icon(Icons.Default.Email, contentDescription = null) },
-                        label = { Text("要望") },
+                        onClick = { vm.open(Screen.Settings) },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        label = { Text("設定") },
                     )
                 }
             },
@@ -140,13 +160,26 @@ fun KondateAppUi(vm: KondateViewModel) {
                         onSave = { vm.save(it, screen.assignTo) },
                         onBack = vm::back,
                     )
+                    Screen.Settings -> SettingsScreen(
+                        email = email,
+                        onFeedback = { vm.open(Screen.Feedback) },
+                        onSignOut = vm::signOut,
+                        onBack = vm::back,
+                    )
                     Screen.Feedback -> FeedbackScreen(onBack = vm::back)
                 }
             }
         }
-        SnackbarHost(
-            snackbar,
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = SnackbarBottomOffset),
+    }
+
+    vm.migration?.let { state ->
+        MigrationDialog(
+            state = state,
+            onMove = { vm.moveToServer(it.data) },
+            onStartEmpty = vm::startWithoutLocalData,
+            onDiscard = vm::discardLocalData,
+            onRetry = vm::checkMigration,
+            onSignOut = vm::signOut,
         )
     }
 

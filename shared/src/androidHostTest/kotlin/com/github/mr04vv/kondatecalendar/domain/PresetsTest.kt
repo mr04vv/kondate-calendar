@@ -10,22 +10,28 @@ class PresetsTest {
 
     private val presets = parsePresets(File(PRESETS_PATH).readText())
 
+    private val karaage = presets.first().toDish()
+    private val ownDish = karaage.copy(id = "abc", presetKey = null, name = "自作の煮物")
+
     @Test
-    fun seedingInsertsEverythingIntoAnEmptyDatabase() {
-        assertEquals(presets, presetsToInsert(presets, existingKeys = emptySet()))
+    fun withNothingStoredEveryPresetIsShown() {
+        assertEquals(presets.map { it.toDish() }.sortedBy { it.name }, mergeDishes(presets.map { it.toDish() }, stored = emptyList()))
     }
 
     @Test
-    fun seedingTwiceInsertsNothingTheSecondTime() {
-        val firstRun = presetsToInsert(presets, existingKeys = emptySet())
-        val secondRun = presetsToInsert(presets, existingKeys = firstRun.map { it.key }.toSet())
-        assertTrue(secondRun.isEmpty())
+    fun aStoredEditReplacesItsPreset() {
+        val edited = karaage.copy(canCook = true, steps = "揚げる")
+        assertEquals(listOf(edited), mergeDishes(listOf(karaage), stored = listOf(edited)))
     }
 
     @Test
-    fun seedingOnlyAddsPresetsThatAreMissing() {
-        val existing = presets.drop(1).map { it.key }.toSet()
-        assertEquals(listOf(presets.first()), presetsToInsert(presets, existing))
+    fun ownDishesAreShownAlongsidePresetsByName() {
+        assertEquals(listOf(karaage, ownDish).sortedBy { it.name }, mergeDishes(listOf(karaage), stored = listOf(ownDish)))
+    }
+
+    @Test
+    fun anEditedPresetDroppedFromTheBundleIsStillShown() {
+        assertEquals(listOf(karaage), mergeDishes(emptyList(), stored = listOf(karaage)))
     }
 
     @Test
@@ -57,6 +63,7 @@ class PresetsTest {
     fun presetBecomesADishWithOneStepPerLine() {
         val p = presets.first()
         val dish = p.toDish()
+        assertEquals(p.key, dish.id)
         assertEquals(p.key, dish.presetKey)
         assertEquals(p.steps, dish.steps.lines())
     }

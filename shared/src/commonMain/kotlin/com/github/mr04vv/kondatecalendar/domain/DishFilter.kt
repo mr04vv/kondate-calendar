@@ -22,7 +22,7 @@ data class DishFilter(
  * A random dish matching [filter], avoiding [excludeId] when another candidate exists.
  * Draws from presets, or from every cookable dish (own dishes included) when [DishFilter.canCookOnly] is set.
  */
-fun recommend(dishes: List<Dish>, filter: DishFilter, random: Random, excludeId: Long? = null): Dish? {
+fun recommend(dishes: List<Dish>, filter: DishFilter, random: Random, excludeId: String? = null): Dish? {
     val candidates = dishes.filter { (filter.canCookOnly || it.presetKey != null) && filter.matches(it) }
     val fresh = candidates.filter { it.id != excludeId }
     return fresh.ifEmpty { candidates }.randomOrNull(random)

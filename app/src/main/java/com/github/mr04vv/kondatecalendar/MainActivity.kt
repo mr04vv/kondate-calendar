@@ -10,14 +10,18 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.github.mr04vv.kondatecalendar.auth.googleSignIn
+import com.github.mr04vv.kondatecalendar.data.legacyDatabase
 import com.github.mr04vv.kondatecalendar.ui.KondateAppUi
 import com.github.mr04vv.kondatecalendar.ui.KondateTheme
 import com.github.mr04vv.kondatecalendar.ui.KondateViewModel
 
 class MainActivity : ComponentActivity() {
     private val vm: KondateViewModel by viewModels {
-        viewModelFactory { initializer { KondateViewModel((application as KondateApp).db.dao()) } }
+        viewModelFactory { initializer { KondateViewModel(legacyDatabase(application)) } }
     }
+
+    private val signIn = googleSignIn(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // The app is always light, so keep dark system-bar icons even when the device is in dark mode.
@@ -27,7 +31,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             // The system back gesture closes pushed screens; on iOS their top-bar arrows do.
             BackHandler(enabled = vm.stack.isNotEmpty()) { vm.back() }
-            KondateTheme { KondateAppUi(vm) }
+            KondateTheme { KondateAppUi(vm, signIn) }
         }
     }
 }

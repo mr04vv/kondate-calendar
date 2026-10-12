@@ -14,14 +14,14 @@ import kotlin.random.Random
 class DishFilterTest {
 
     private fun dish(
-        id: Long,
+        id: Int,
         name: String,
         genre: Genre,
         vararg types: DishType,
         preset: Boolean = true,
         canCook: Boolean = false,
     ) = Dish(
-        id = id,
+        id = "$id",
         presetKey = if (preset) "k$id" else null,
         canCook = canCook,
         name = name,

@@ -4,6 +4,9 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// The Firebase config stays out of git; without it the app builds but cannot sign in.
+if (file("google-services.json").exists()) apply(plugin = libs.plugins.google.services.get().pluginId)
+
 android {
     namespace = "com.github.mr04vv.kondatecalendar"
     compileSdk = 36

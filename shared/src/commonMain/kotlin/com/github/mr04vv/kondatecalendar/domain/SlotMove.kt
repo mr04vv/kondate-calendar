@@ -14,7 +14,7 @@ data class SlotMove(val slots: List<MealSlot>, val vacated: MealSlot?, val items
  * checked or not, follow it, so clearing the new slot or adding it again still finds them. Rows left by an earlier
  * dish in either slot stay where they are.
  */
-fun slotMove(from: MealSlot, toDate: LocalDate, toMeal: Meal, toDishId: Long?, items: List<ShoppingItem>): SlotMove {
+fun slotMove(from: MealSlot, toDate: LocalDate, toMeal: Meal, toDishId: String?, items: List<ShoppingItem>): SlotMove {
     if (from.date == toDate && from.meal == toMeal) return SlotMove(emptyList(), null, emptyList())
     val to = toDishId?.let { MealSlot(toDate, toMeal, it) }
     val moved = items.mapNotNull { item ->

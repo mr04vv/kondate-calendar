@@ -1,6 +1,5 @@
 package com.github.mr04vv.kondatecalendar.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -15,23 +14,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.mr04vv.kondatecalendar.data.Dish
 import com.github.mr04vv.kondatecalendar.data.DishType
 import com.github.mr04vv.kondatecalendar.data.Genre
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -64,29 +56,16 @@ fun TypeTag(type: DishType) {
     )
 }
 
-/** The dish photo when it has one, otherwise its emoji on a tinted square. */
+/** The dish's emoji on a tinted square. */
 @Composable
 fun DishThumb(dish: Dish, size: Dp, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(size / 6)
-    val photo = dish.photoPath?.let { rememberPhoto(it) }
     Box(
         modifier.size(size).clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh),
         contentAlignment = Alignment.Center,
     ) {
-        if (photo != null) {
-            Image(photo, contentDescription = dish.name, contentScale = ContentScale.Crop, modifier = Modifier.size(size))
-        } else {
-            Text(dish.emoji, fontSize = (size.value * EMOJI_SIZE_RATIO).sp)
-        }
+        Text(dish.emoji, fontSize = (size.value * EMOJI_SIZE_RATIO).sp)
     }
-}
-
-@Composable
-fun rememberPhoto(path: String): ImageBitmap? {
-    val bitmap by produceState<ImageBitmap?>(null, path) {
-        value = withContext(Dispatchers.IO) { loadPhoto(path) }
-    }
-    return bitmap
 }
 
 fun DayOfWeek.label(): String = when (this) {

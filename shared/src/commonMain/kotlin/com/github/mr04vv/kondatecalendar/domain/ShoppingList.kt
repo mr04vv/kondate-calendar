@@ -64,7 +64,7 @@ fun shoppingListText(groups: List<ShoppingGroup>): String =
         "・${group.name}$amount${if (group.checked) CHECKED_MARK else ""}"
     }).joinToString("\n")
 
-private data class SourceKey(val date: LocalDate?, val meal: Meal?, val dishId: Long)
+private data class SourceKey(val date: LocalDate?, val meal: Meal?, val dishId: String)
 
 private fun ShoppingItem.sourceKey(): SourceKey? = dishId?.let { SourceKey(date, meal, it) }
 

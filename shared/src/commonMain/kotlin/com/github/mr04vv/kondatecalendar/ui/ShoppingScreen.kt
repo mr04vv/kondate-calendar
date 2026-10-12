@@ -62,7 +62,7 @@ fun ShoppingScreen(
     val share = rememberShareText()
     // Rows stay where they are while this tab is shown, so checking one does not scroll the list.
     // Plain remember: leaving the tab drops it, and the DB order (checked rows last) returns.
-    val order = remember { mutableListOf<Long>() }
+    val order = remember { mutableListOf<String>() }
     // Rows are kept in place first, then grouped: a group sits where its first row is.
     val shown = remember(items) {
         val rows = keepShoppingOrder(order, items)
