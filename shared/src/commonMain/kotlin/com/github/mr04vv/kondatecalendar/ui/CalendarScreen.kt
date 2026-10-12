@@ -320,7 +320,7 @@ private fun PlanList(
                 }
             }) { row ->
                 when (row) {
-                    is ListRow.WeekHeader -> WeekHeader(row.monday, plan, onAddToShopping)
+                    is ListRow.WeekHeader -> WeekHeader(row.monday, today, plan, onAddToShopping)
                     is ListRow.Day -> DayRow(row.date, row.date == today, plan, onTapSlot)
                 }
             }
@@ -329,9 +329,15 @@ private fun PlanList(
 }
 
 @Composable
-private fun WeekHeader(monday: LocalDate, plan: Map<SlotKey, Dish>, onAddToShopping: (List<ShoppingSource>) -> Unit) {
+private fun WeekHeader(
+    monday: LocalDate,
+    today: LocalDate,
+    plan: Map<SlotKey, Dish>,
+    onAddToShopping: (List<ShoppingSource>) -> Unit,
+) {
     val week = weekOf(monday)
-    val sources = plan.sourcesOn(week)
+    // Days already past are not added, so a past week's button is disabled.
+    val sources = plan.sourcesOn(week.filter { it >= today })
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
             "${monday.month.number}/${monday.day} – ${week.last().month.number}/${week.last().day}",

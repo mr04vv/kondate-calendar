@@ -18,10 +18,11 @@ sealed interface ShoppingSource {
 /**
  * Returns the rows to insert when [sources] are added to a list that currently holds [existing]: one row per
  * ingredient. A source that already has a row, checked or not, is skipped so pressing the button twice adds nothing.
+ * Slots on a day before [today] are skipped too, as their rows would expire right away.
  */
-fun shoppingRowsToAdd(existing: List<ShoppingItem>, sources: List<ShoppingSource>): List<ShoppingItem> {
+fun shoppingRowsToAdd(existing: List<ShoppingItem>, sources: List<ShoppingSource>, today: LocalDate): List<ShoppingItem> {
     val present = existing.mapNotNullTo(HashSet()) { it.sourceKey() }
-    return sources.filter { present.add(it.key()) }.flatMap { source ->
+    return sources.filter { !it.key().date.hasPassed(today) && present.add(it.key()) }.flatMap { source ->
         source.dish.ingredients.map { ingredient ->
             ShoppingItem(
                 name = ingredient.name.trim(),
@@ -34,6 +35,10 @@ fun shoppingRowsToAdd(existing: List<ShoppingItem>, sources: List<ShoppingSource
         }
     }
 }
+
+/** Unchecked rows from a slot on a day before [today]; manual and recipe rows never expire. */
+fun expiredShoppingRows(items: List<ShoppingItem>, today: LocalDate): List<ShoppingItem> =
+    items.filter { !it.checked && it.date.hasPassed(today) }
 
 /** One line of the shopping list: every row with the same name and checked state. */
 data class ShoppingGroup(
@@ -67,6 +72,8 @@ private fun ShoppingSource.key(): SourceKey = when (this) {
     is ShoppingSource.Slot -> SourceKey(date, meal, dish.id)
     is ShoppingSource.Recipe -> SourceKey(null, null, dish.id)
 }
+
+private fun LocalDate?.hasPassed(today: LocalDate): Boolean = this != null && this < today
 
 private fun ShoppingItem.sourceLabel(): String? {
     val dish = dishName ?: return null

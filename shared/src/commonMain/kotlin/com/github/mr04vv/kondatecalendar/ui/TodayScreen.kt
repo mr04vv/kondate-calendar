@@ -102,7 +102,8 @@ fun TodayScreen(
         }
         Button(
             onClick = { onAddToShopping(sources) },
-            enabled = ingredients.isNotEmpty(),
+            // A past day's rows would expire right away, so they are not added.
+            enabled = ingredients.isNotEmpty() && date >= today,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).height(48.dp),
         ) {
             Icon(Icons.Default.ShoppingCart, contentDescription = null)

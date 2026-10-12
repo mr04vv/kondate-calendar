@@ -65,6 +65,9 @@ fun KondateAppUi(vm: KondateViewModel) {
         }
     }
 
+    // Rows for days already past leave the list each time it is opened.
+    LaunchedEffect(vm.tab) { if (vm.tab == Tab.SHOPPING) vm.deleteExpiredShopping() }
+
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
