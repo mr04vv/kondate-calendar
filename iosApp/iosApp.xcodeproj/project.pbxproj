@@ -182,7 +182,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Registers the reversed client id from GoogleService-Info.plist (kept out of git) as a URL scheme, which GoogleSignIn needs.\nCONFIG=\"$SRCROOT/iosApp/GoogleService-Info.plist\"\n[ -f \"$CONFIG\" ] || exit 0\nSCHEME=$(/usr/libexec/PlistBuddy -c \"Print :REVERSED_CLIENT_ID\" \"$CONFIG\")\nINFO=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c \"Delete :CFBundleURLTypes\" \"$INFO\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleURLTypes array\" -c \"Add :CFBundleURLTypes:0 dict\" -c \"Add :CFBundleURLTypes:0:CFBundleURLSchemes array\" -c \"Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string $SCHEME\" \"$INFO\"\n";
+			shellScript = "# Registers the reversed client id from GoogleService-Info.plist (kept out of git) as a URL scheme, which GoogleSignIn needs.\nCONFIG=\"$SRCROOT/iosApp/GoogleService-Info.plist\"\n[ -f \"$CONFIG\" ] || exit 0\nSCHEME=$(/usr/libexec/PlistBuddy -c \"Print :REVERSED_CLIENT_ID\" \"$CONFIG\" 2>/dev/null) || { echo \"warning: GoogleService-Info.plist has no REVERSED_CLIENT_ID; enable Google sign-in in Firebase Authentication and download it again\"; exit 0; }\nINFO=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c \"Delete :CFBundleURLTypes\" \"$INFO\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleURLTypes array\" -c \"Add :CFBundleURLTypes:0 dict\" -c \"Add :CFBundleURLTypes:0:CFBundleURLSchemes array\" -c \"Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string $SCHEME\" \"$INFO\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
