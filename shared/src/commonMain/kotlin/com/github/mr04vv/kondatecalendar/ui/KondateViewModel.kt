@@ -255,6 +255,13 @@ class KondateViewModel(private val legacy: LegacyDatabase) : ViewModel() {
         onAdded(rows.size)
     }
 
+    /** Replaces the whole list, manual and checked rows too, with [sources]' ingredients; [onReplaced] gets the count. */
+    fun replaceShopping(sources: List<ShoppingSource>, onReplaced: (Int) -> Unit) {
+        val rows = shoppingRowsToAdd(existing = emptyList(), sources, today())
+        store.value?.replaceShoppingItems(shopping.value, rows)
+        onReplaced(rows.size)
+    }
+
     fun deleteExpiredShopping() {
         store.value?.deleteShoppingItems(expiredShoppingRows(shopping.value, today()))
     }

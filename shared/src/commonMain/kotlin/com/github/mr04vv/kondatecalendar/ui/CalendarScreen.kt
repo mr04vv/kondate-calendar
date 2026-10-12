@@ -113,7 +113,7 @@ fun CalendarScreen(
     plan: Map<SlotKey, Dish>,
     onTapSlot: (SlotKey) -> Unit,
     onMoveSlot: (from: SlotKey, to: SlotKey) -> Unit,
-    onAddToShopping: (List<ShoppingSource>) -> Unit,
+    onReplaceShopping: (List<ShoppingSource>) -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
     val onMove by rememberUpdatedState(onMoveSlot)
@@ -172,7 +172,7 @@ fun CalendarScreen(
             }
             when (mode) {
                 CalendarMode.GRID -> MonthGrid(pagerState, today, plan, focus, onFocus = { focus = it }, onTapSlot, drag)
-                CalendarMode.LIST -> PlanList(rows, listState, today, plan, onTapSlot, drag, onAddToShopping)
+                CalendarMode.LIST -> PlanList(rows, listState, today, plan, onTapSlot, drag, onReplaceShopping)
             }
         }
         drag.from?.let { plan[it] }?.let { DragGhost(it, drag) }
@@ -335,7 +335,7 @@ private fun PlanList(
     plan: Map<SlotKey, Dish>,
     onTapSlot: (SlotKey) -> Unit,
     drag: SlotDrag,
-    onAddToShopping: (List<ShoppingSource>) -> Unit,
+    onReplaceShopping: (List<ShoppingSource>) -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
@@ -358,7 +358,7 @@ private fun PlanList(
                 }
             }) { row ->
                 when (row) {
-                    is ListRow.WeekHeader -> WeekHeader(row.monday, today, plan, onAddToShopping)
+                    is ListRow.WeekHeader -> WeekHeader(row.monday, today, plan, onReplaceShopping)
                     is ListRow.Day -> DayRow(row.date, row.date == today, plan, onTapSlot, drag)
                 }
             }
@@ -371,7 +371,7 @@ private fun WeekHeader(
     monday: LocalDate,
     today: LocalDate,
     plan: Map<SlotKey, Dish>,
-    onAddToShopping: (List<ShoppingSource>) -> Unit,
+    onReplaceShopping: (List<ShoppingSource>) -> Unit,
 ) {
     val week = weekOf(monday)
     // Days already past are not added, so a past week's button is disabled.
@@ -384,7 +384,7 @@ private fun WeekHeader(
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = { onAddToShopping(sources) }, enabled = sources.any { it.dish.ingredients.isNotEmpty() }) {
+        TextButton(onClick = { onReplaceShopping(sources) }, enabled = sources.any { it.dish.ingredients.isNotEmpty() }) {
             Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(16.dp))
             Text("この週の材料を買い物リストへ", fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp))
         }

@@ -81,15 +81,11 @@ class KondateStore(uid: String, private val scope: CoroutineScope) {
     }
 
     /** Adds [items] in order after every row already in the list. */
-    fun insertShoppingItems(items: List<ShoppingItem>) {
-        val now = Clock.System.now().toEpochMilliseconds()
-        write(
-            items.mapIndexed { index, item ->
-                val ref = shopping.document
-                setOp(ref, item.copy(id = ref.id, createdAt = now + index))
-            },
-        )
-    }
+    fun insertShoppingItems(items: List<ShoppingItem>) = write(insertOps(items))
+
+    /** Empties the list ([current] is everything in it) and fills it with [items], in one go. */
+    fun replaceShoppingItems(current: List<ShoppingItem>, items: List<ShoppingItem>) =
+        write(current.map { deleteOp(shopping.document(it.id)) } + insertOps(items))
 
     fun updateShoppingItems(items: List<ShoppingItem>) = write(items.map { setOp(shopping.document(it.id), it) })
 
@@ -137,6 +133,14 @@ class KondateStore(uid: String, private val scope: CoroutineScope) {
     private inline fun <reified T : Any> setOp(ref: DocumentReference, value: T): BatchOp = { set(ref, value) }
 
     private fun deleteOp(ref: DocumentReference): BatchOp = { delete(ref) }
+
+    private fun insertOps(items: List<ShoppingItem>): List<BatchOp> {
+        val now = Clock.System.now().toEpochMilliseconds()
+        return items.mapIndexed { index, item ->
+            val ref = shopping.document
+            setOp(ref, item.copy(id = ref.id, createdAt = now + index))
+        }
+    }
 
     /** Applies [ops] in batches without waiting for the server; see the class comment. */
     private fun write(ops: List<BatchOp>) {
