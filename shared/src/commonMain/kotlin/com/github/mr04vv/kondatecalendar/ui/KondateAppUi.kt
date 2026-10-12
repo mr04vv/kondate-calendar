@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -19,12 +20,15 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -85,6 +89,14 @@ private fun SignedInUi(vm: KondateViewModel, email: String?, snackbar: SnackbarH
         }
     }
 
+    val replaceShopping: (List<ShoppingSource>) -> Unit = { sources ->
+        vm.replaceShopping(sources) { count ->
+            scope.launch { snackbar.showSnackbar("買い物リストをこの週の材料 $count 品に入れ替えました") }
+        }
+    }
+    // The week whose ingredients wait for the user to confirm replacing a non-empty list.
+    var confirmingWeek by remember { mutableStateOf<List<ShoppingSource>?>(null) }
+
     // Rows for days already past leave the list each time it is opened.
     LaunchedEffect(vm.tab) { if (vm.tab == Tab.SHOPPING) vm.deleteExpiredShopping() }
 
@@ -118,7 +130,9 @@ private fun SignedInUi(vm: KondateViewModel, email: String?, snackbar: SnackbarH
                             plan = plan,
                             onTapSlot = vm::tapSlot,
                             onMoveSlot = vm::moveSlot,
-                            onAddToShopping = addToShopping,
+                            onReplaceShopping = { sources ->
+                                if (shopping.isEmpty()) replaceShopping(sources) else confirmingWeek = sources
+                            },
                         )
                         Tab.TODAY -> TodayScreen(
                             plan = plan,
@@ -170,6 +184,21 @@ private fun SignedInUi(vm: KondateViewModel, email: String?, snackbar: SnackbarH
                 }
             }
         }
+    }
+
+    confirmingWeek?.let { sources ->
+        AlertDialog(
+            onDismissRequest = { confirmingWeek = null },
+            title = { Text("買い物リストを入れ替えますか") },
+            text = { Text("今の買い物リストをすべて消して、この週の今日以降の材料に入れ替えます。手入力した材料やチェック済みの材料も消えます。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingWeek = null
+                    replaceShopping(sources)
+                }) { Text("入れ替える") }
+            },
+            dismissButton = { TextButton(onClick = { confirmingWeek = null }) { Text("キャンセル") } },
+        )
     }
 
     vm.migration?.let { state ->
