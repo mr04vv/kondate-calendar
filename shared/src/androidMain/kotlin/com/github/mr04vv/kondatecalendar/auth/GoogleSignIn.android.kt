@@ -13,7 +13,7 @@ private const val WEB_CLIENT_ID_RESOURCE = "default_web_client_id"
 /** Signs in through Credential Manager; [activity] hosts the account chooser. */
 fun googleSignIn(activity: Activity): GoogleSignIn = signIn@{
     val resource = activity.resources.getIdentifier(WEB_CLIENT_ID_RESOURCE, "string", activity.packageName)
-    check(resource != 0) { "google-services.json が app/ にありません" }
+    check(resource != 0) { "google-services.json に Web クライアント ID がありません。Firebase で Google ログインを有効にしてからダウンロードし直してください" }
     val option = GetSignInWithGoogleOption.Builder(activity.getString(resource)).build()
     val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
     val result = try {
