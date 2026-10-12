@@ -48,11 +48,10 @@ private const val DEFAULT_EMOJI = "🍽️"
 private const val MIN_STEP_LINES = 5
 
 // ponytail: form state lives in remember (the activity handles config changes itself); switch to
-// rememberSaveable if losing a half-filled form after process death while the camera is open matters.
+// rememberSaveable if losing a half-filled form after process death matters.
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditScreen(original: Dish?, onSave: (Dish) -> Unit, onBack: () -> Unit) {
-    val isPreset = original?.presetKey != null
     var name by remember { mutableStateOf(original?.name ?: "") }
     var emoji by remember { mutableStateOf(original?.emoji ?: "") }
     var genre by remember { mutableStateOf(original?.genre ?: Genre.WASHOKU) }
@@ -62,7 +61,6 @@ fun EditScreen(original: Dish?, onSave: (Dish) -> Unit, onBack: () -> Unit) {
         mutableStateListOf<Ingredient>().apply { addAll(original?.ingredients.orEmpty().ifEmpty { listOf(Ingredient("", "")) }) }
     }
     var steps by remember { mutableStateOf(original?.steps ?: "") }
-    var photoPath by remember { mutableStateOf(original?.photoPath) }
     // A dish the user adds themselves is one they can cook unless they say otherwise.
     var canCook by remember { mutableStateOf(original?.canCook ?: true) }
 
@@ -78,7 +76,6 @@ fun EditScreen(original: Dish?, onSave: (Dish) -> Unit, onBack: () -> Unit) {
                 minutes = minutes.toIntOrNull(),
                 ingredients = ingredients.map { Ingredient(it.name.trim(), it.amount.trim()) }.filter { it.name.isNotEmpty() },
                 steps = steps.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n"),
-                photoPath = if (isPreset) null else photoPath,
                 canCook = canCook,
             ),
         )
@@ -186,7 +183,6 @@ fun EditScreen(original: Dish?, onSave: (Dish) -> Unit, onBack: () -> Unit) {
                 minLines = MIN_STEP_LINES,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (!isPreset) PhotoSection(photoPath, onChange = { photoPath = it })
             Row(Modifier.height(24.dp)) {}
         }
     }

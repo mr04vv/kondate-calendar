@@ -131,9 +131,7 @@ class KondateViewModel(private val dao: KondateDao) : ViewModel() {
     fun deleteChecked() = viewModelScope.launch { dao.deleteCheckedShoppingItems() }
 
     fun save(dish: Dish, assignTo: SlotKey?) = viewModelScope.launch {
-        val previousPhoto = dishById(dish.id)?.photoPath
         val id = if (dish.id == 0L) dao.insertDish(dish) else dish.id.also { dao.updateDish(dish) }
-        if (previousPhoto != null && previousPhoto != dish.photoPath) deletePhoto(previousPhoto)
         if (assignTo != null) dao.assignSlot(MealSlot(assignTo.date, assignTo.meal, id))
         back()
     }
