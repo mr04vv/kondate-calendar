@@ -109,8 +109,10 @@ class KondateViewModel(private val dao: KondateDao) : ViewModel() {
 
     /** [onAdded] receives how many rows went in; zero means every source was already in the list. */
     fun addToShopping(sources: List<ShoppingSource>, onAdded: (Int) -> Unit) = viewModelScope.launch {
-        onAdded(dao.addToShoppingList(sources))
+        onAdded(dao.addToShoppingList(sources, today()))
     }
+
+    fun deleteExpiredShopping() = viewModelScope.launch { dao.deleteExpiredShoppingItems(today()) }
 
     fun addManualItem(name: String, amount: String) = viewModelScope.launch {
         dao.insertShoppingItems(listOf(ShoppingItem(name = name.trim(), amount = amount.trim())))

@@ -19,6 +19,7 @@ import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
+import com.github.mr04vv.kondatecalendar.domain.expiredShoppingRows
 import com.github.mr04vv.kondatecalendar.domain.shoppingRowsToAdd
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -104,12 +105,17 @@ interface KondateDao {
     @Query("DELETE FROM shopping_item WHERE checked = 1")
     suspend fun deleteCheckedShoppingItems()
 
-    /** Returns how many rows were added; sources already in the list add none. */
+    /** Returns how many rows were added; sources already in the list or on a day before [today] add none. */
     @Transaction
-    suspend fun addToShoppingList(sources: List<ShoppingSource>): Int {
-        val rows = shoppingRowsToAdd(currentShoppingItems(), sources)
+    suspend fun addToShoppingList(sources: List<ShoppingSource>, today: LocalDate): Int {
+        val rows = shoppingRowsToAdd(currentShoppingItems(), sources, today)
         insertShoppingItems(rows)
         return rows.size
+    }
+
+    @Transaction
+    suspend fun deleteExpiredShoppingItems(today: LocalDate) {
+        deleteShoppingItems(expiredShoppingRows(currentShoppingItems(), today))
     }
 }
 

@@ -7,6 +7,7 @@ import com.github.mr04vv.kondatecalendar.data.Meal
 import com.github.mr04vv.kondatecalendar.data.ShoppingItem
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -43,7 +44,7 @@ class ShoppingListTest {
 
     @Test
     fun aSlotAddsOneRowPerIngredientRecordingWhereItCameFrom() {
-        val result = shoppingRowsToAdd(emptyList(), listOf(ShoppingSource.Slot(day, Meal.DINNER, nikujaga)))
+        val result = shoppingRowsToAdd(emptyList(), listOf(ShoppingSource.Slot(day, Meal.DINNER, nikujaga)), today = day)
         assertEquals(
             listOf(
                 ShoppingItem(name = "じゃがいも", amount = "3個", date = day, meal = Meal.DINNER, dishId = 1, dishName = "肉じゃが"),
@@ -55,13 +56,13 @@ class ShoppingListTest {
 
     @Test
     fun aRecipeAddsRowsWithoutASlot() {
-        val result = shoppingRowsToAdd(emptyList(), listOf(ShoppingSource.Recipe(curry)))
+        val result = shoppingRowsToAdd(emptyList(), listOf(ShoppingSource.Recipe(curry)), today = day)
         assertEquals(listOf(ShoppingItem(name = "玉ねぎ", amount = "1/2個", dishId = 2, dishName = "カレー")), result)
     }
 
     @Test
     fun namesAndAmountsAreTrimmed() {
-        val result = shoppingRowsToAdd(emptyList(), listOf(ShoppingSource.Recipe(dish(3, "卵焼き", Ingredient(" 卵 ", " 2個 ")))))
+        val result = shoppingRowsToAdd(emptyList(), listOf(ShoppingSource.Recipe(dish(3, "卵焼き", Ingredient(" 卵 ", " 2個 ")))), today = day)
         assertEquals(listOf(ShoppingItem(name = "卵", amount = "2個", dishId = 3, dishName = "卵焼き")), result)
     }
 
@@ -71,6 +72,7 @@ class ShoppingListTest {
         val result = shoppingRowsToAdd(
             existing,
             listOf(ShoppingSource.Slot(day, Meal.DINNER, nikujaga), ShoppingSource.Slot(day, Meal.LUNCH, curry)),
+            today = day,
         )
         assertEquals(
             listOf(ShoppingItem(name = "玉ねぎ", amount = "1/2個", date = day, meal = Meal.LUNCH, dishId = 2, dishName = "カレー")),
@@ -81,34 +83,64 @@ class ShoppingListTest {
     @Test
     fun aSlotWhoseRowsAreCheckedCountsAsAlreadyAdded() {
         val existing = listOf(slotRow(10, nikujaga, "じゃがいも", "3個", checked = true))
-        assertEquals(emptyList<ShoppingItem>(), shoppingRowsToAdd(existing, listOf(ShoppingSource.Slot(day, Meal.DINNER, nikujaga))))
+        assertEquals(emptyList<ShoppingItem>(), shoppingRowsToAdd(existing, listOf(ShoppingSource.Slot(day, Meal.DINNER, nikujaga)), today = day))
     }
 
     @Test
     fun theSameSlotWithAnotherDishIsAdded() {
         val existing = listOf(slotRow(10, nikujaga, "じゃがいも", "3個", checked = true))
-        val result = shoppingRowsToAdd(existing, listOf(ShoppingSource.Slot(day, Meal.DINNER, curry)))
+        val result = shoppingRowsToAdd(existing, listOf(ShoppingSource.Slot(day, Meal.DINNER, curry)), today = day)
         assertEquals(1, result.size)
     }
 
     @Test
     fun aRecipeAlreadyInTheListIsNotAddedAgainButItsSlotRowsDoNotCount() {
         val fromRecipe = ShoppingItem(id = 5, name = "玉ねぎ", amount = "1/2個", dishId = 2, dishName = "カレー")
-        assertEquals(emptyList<ShoppingItem>(), shoppingRowsToAdd(listOf(fromRecipe), listOf(ShoppingSource.Recipe(curry))))
+        assertEquals(emptyList<ShoppingItem>(), shoppingRowsToAdd(listOf(fromRecipe), listOf(ShoppingSource.Recipe(curry)), today = day))
         val fromSlot = slotRow(6, curry, "玉ねぎ", "1/2個")
-        assertEquals(1, shoppingRowsToAdd(listOf(fromSlot), listOf(ShoppingSource.Recipe(curry))).size)
+        assertEquals(1, shoppingRowsToAdd(listOf(fromSlot), listOf(ShoppingSource.Recipe(curry)), today = day).size)
     }
 
     @Test
     fun manualRowsNeverBlockAnAdd() {
         val manual = ShoppingItem(id = 1, name = "玉ねぎ", amount = "1個")
-        assertEquals(1, shoppingRowsToAdd(listOf(manual), listOf(ShoppingSource.Recipe(curry))).size)
+        assertEquals(1, shoppingRowsToAdd(listOf(manual), listOf(ShoppingSource.Recipe(curry)), today = day).size)
     }
 
     @Test
     fun theSameSourceTwiceInOneCallIsAddedOnce() {
         val source = ShoppingSource.Recipe(curry)
-        assertEquals(1, shoppingRowsToAdd(emptyList(), listOf(source, source)).size)
+        assertEquals(1, shoppingRowsToAdd(emptyList(), listOf(source, source), today = day).size)
+    }
+
+    @Test
+    fun slotsOnDaysThatHavePassedAreNotAdded() {
+        val yesterday = day.minus(1, DateTimeUnit.DAY)
+        val result = shoppingRowsToAdd(
+            emptyList(),
+            listOf(ShoppingSource.Slot(yesterday, Meal.DINNER, curry), ShoppingSource.Slot(day, Meal.DINNER, curry)),
+            today = day,
+        )
+        assertEquals(listOf(day), result.map { it.date })
+    }
+
+    // expired
+
+    @Test
+    fun lastWeeksOpenSlotRowsExpire() {
+        val lastWeek = slotRow(1, nikujaga, "じゃがいも", "3個", date = day.minus(7, DateTimeUnit.DAY))
+        val today = slotRow(2, curry, "玉ねぎ", "1/2個")
+        assertEquals(listOf(lastWeek), expiredShoppingRows(listOf(lastWeek, today), today = day))
+    }
+
+    @Test
+    fun checkedManualAndRecipeRowsDoNotExpire() {
+        val rows = listOf(
+            slotRow(1, nikujaga, "じゃがいも", "3個", date = day.minus(1, DateTimeUnit.DAY), checked = true),
+            ShoppingItem(id = 2, name = "牛乳", amount = "1本"),
+            ShoppingItem(id = 3, name = "玉ねぎ", amount = "1/2個", dishId = 2, dishName = "カレー"),
+        )
+        assertEquals(emptyList<ShoppingItem>(), expiredShoppingRows(rows, today = day))
     }
 
     // group
