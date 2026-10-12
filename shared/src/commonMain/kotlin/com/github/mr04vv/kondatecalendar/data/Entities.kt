@@ -1,10 +1,5 @@
 package com.github.mr04vv.kondatecalendar.data
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 
@@ -38,10 +33,13 @@ enum class Meal(val label: String) {
 @Serializable
 data class Ingredient(val name: String, val amount: String)
 
-/** A dish. [presetKey] is non-null for bundled presets and null for user-created dishes. */
-@Entity(tableName = "dish", indices = [Index(value = ["presetKey"], unique = true)])
+/**
+ * A dish. Bundled presets have [id] equal to [presetKey] and are stored only once the user edits them;
+ * a dish the user created has a generated [id] and a null [presetKey].
+ */
+@Serializable
 data class Dish(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val id: String = "",
     val presetKey: String? = null,
     val name: String,
     val emoji: String,
@@ -51,43 +49,33 @@ data class Dish(
     val ingredients: List<Ingredient>,
     /** One step per line. */
     val steps: String,
-    val photoPath: String? = null,
     /** The user marked this as a dish they can cook. */
-    @ColumnInfo(defaultValue = "0") val canCook: Boolean = false,
+    val canCook: Boolean = false,
 )
 
-@Entity(
-    tableName = "meal_slot",
-    primaryKeys = ["date", "meal"],
-    foreignKeys = [
-        ForeignKey(
-            entity = Dish::class,
-            parentColumns = ["id"],
-            childColumns = ["dishId"],
-            onDelete = ForeignKey.CASCADE,
-        ),
-    ],
-    indices = [Index("dishId")],
-)
+/** One dish planned for a date and meal; an empty slot has no record. */
+@Serializable
 data class MealSlot(
     val date: LocalDate,
     val meal: Meal,
-    val dishId: Long,
+    val dishId: String,
 )
 
 /**
  * One ingredient from one source. [dishId] is null for a row typed in by hand; [date] and [meal] are null unless the
  * row came from a planned slot, so clearing that slot can take its unchecked rows back out.
  */
-@Entity(tableName = "shopping_item")
+@Serializable
 data class ShoppingItem(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val id: String = "",
     val name: String,
     val amount: String,
     val checked: Boolean = false,
     val date: LocalDate? = null,
     val meal: Meal? = null,
-    val dishId: Long? = null,
+    val dishId: String? = null,
     /** The dish name at the time the row was added, shown as its source. */
     val dishName: String? = null,
+    /** Epoch milliseconds when the row was added; the list shows rows in this order. */
+    val createdAt: Long = 0,
 )

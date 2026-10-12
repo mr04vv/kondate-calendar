@@ -72,6 +72,8 @@ kotlin {
                 implementation(libs.serialization.json)
                 implementation(libs.datetime)
                 implementation(libs.ktor.client.core)
+                implementation(libs.firebase.auth)
+                implementation(libs.firebase.firestore)
             }
         }
         androidMain {
@@ -81,6 +83,9 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.activity.compose)
             implementation(libs.ktor.client.android)
+            implementation(libs.credentials)
+            implementation(libs.credentials.play.services)
+            implementation(libs.googleid)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

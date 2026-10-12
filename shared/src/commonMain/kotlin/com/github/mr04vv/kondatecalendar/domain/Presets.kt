@@ -19,6 +19,7 @@ data class PresetDish(
     val steps: List<String>,
 ) {
     fun toDish() = Dish(
+        id = key,
         presetKey = key,
         name = name,
         emoji = emoji,
@@ -32,6 +33,12 @@ data class PresetDish(
 
 fun parsePresets(json: String): List<PresetDish> = Json.decodeFromString(json)
 
-/** Presets not yet in the database, so seeding on every launch never duplicates. */
-fun presetsToInsert(presets: List<PresetDish>, existingKeys: Set<String>): List<PresetDish> =
-    presets.filter { it.key !in existingKeys }
+/**
+ * Every dish to show, by name: the bundled [presets] with the user's [stored] edits laid over them, plus the dishes
+ * the user created. An edited preset stays even after it leaves the bundle.
+ */
+fun mergeDishes(presets: List<Dish>, stored: List<Dish>): List<Dish> {
+    val storedById = stored.associateBy { it.id }
+    val presetIds = presets.mapTo(HashSet()) { it.id }
+    return (presets.map { storedById[it.id] ?: it } + stored.filter { it.id !in presetIds }).sortedBy { it.name }
+}

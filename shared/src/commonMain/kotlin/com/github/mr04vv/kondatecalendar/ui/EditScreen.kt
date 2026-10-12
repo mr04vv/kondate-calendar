@@ -67,7 +67,7 @@ fun EditScreen(original: Dish?, onSave: (Dish) -> Unit, onBack: () -> Unit) {
     fun save() {
         onSave(
             Dish(
-                id = original?.id ?: 0,
+                id = original?.id ?: "",
                 presetKey = original?.presetKey,
                 name = name.trim(),
                 emoji = emoji.trim().ifEmpty { DEFAULT_EMOJI },

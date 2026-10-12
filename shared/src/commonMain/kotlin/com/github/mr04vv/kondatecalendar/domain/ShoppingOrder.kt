@@ -7,7 +7,7 @@ import com.github.mr04vv.kondatecalendar.data.ShoppingItem
  * even when checking a row moves it in [current]'s order. Rows missing from [current] drop out.
  * A new row goes right after the row that precedes it in [current], or first if nothing does.
  */
-fun keepShoppingOrder(previous: List<Long>, current: List<ShoppingItem>): List<ShoppingItem> {
+fun keepShoppingOrder(previous: List<String>, current: List<ShoppingItem>): List<ShoppingItem> {
     val byId = current.associateBy { it.id }
     val order = previous.filterTo(ArrayList()) { it in byId }
     val placed = order.toHashSet()

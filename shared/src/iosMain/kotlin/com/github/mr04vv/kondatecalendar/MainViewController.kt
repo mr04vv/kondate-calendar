@@ -2,15 +2,18 @@ package com.github.mr04vv.kondatecalendar
 
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
-import com.github.mr04vv.kondatecalendar.data.createDatabase
+import com.github.mr04vv.kondatecalendar.auth.SwiftGoogleSignIn
+import com.github.mr04vv.kondatecalendar.auth.googleSignIn
+import com.github.mr04vv.kondatecalendar.data.legacyDatabase
 import com.github.mr04vv.kondatecalendar.ui.KondateAppUi
 import com.github.mr04vv.kondatecalendar.ui.KondateTheme
 import com.github.mr04vv.kondatecalendar.ui.KondateViewModel
 import platform.UIKit.UIViewController
 
-/** The iOS app's root view, embedded by iosApp. */
+/** The iOS app's root view, embedded by iosApp, which signs in to Google through [signIn]. */
 @Suppress("FunctionName", "unused")
-fun MainViewController(): UIViewController = ComposeUIViewController {
-    val vm = remember { KondateViewModel(createDatabase().dao()) }
-    KondateTheme { KondateAppUi(vm) }
+fun MainViewController(signIn: SwiftGoogleSignIn): UIViewController = ComposeUIViewController {
+    val vm = remember { KondateViewModel(legacyDatabase()) }
+    val googleSignIn = remember { googleSignIn(signIn) }
+    KondateTheme { KondateAppUi(vm, googleSignIn) }
 }

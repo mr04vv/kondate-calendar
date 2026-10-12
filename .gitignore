@@ -7,3 +7,7 @@ local.properties
 .kotlin/
 captures/
 xcuserdata/
+
+# Firebase config, kept per developer
+app/google-services.json
+iosApp/iosApp/GoogleService-Info.plist

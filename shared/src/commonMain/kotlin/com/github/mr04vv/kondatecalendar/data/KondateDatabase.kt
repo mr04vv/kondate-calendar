@@ -3,28 +3,17 @@ package com.github.mr04vv.kondatecalendar.data
 import androidx.room.ConstructedBy
 import androidx.room.Dao
 import androidx.room.Database
-import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
-import androidx.room.Transaction
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import androidx.room.Update
-import androidx.room.Upsert
 import androidx.room.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
-import com.github.mr04vv.kondatecalendar.domain.ShoppingSource
-import com.github.mr04vv.kondatecalendar.domain.expiredShoppingRows
-import com.github.mr04vv.kondatecalendar.domain.shoppingRowsToAdd
-import com.github.mr04vv.kondatecalendar.domain.slotMove
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
 
@@ -45,95 +34,20 @@ class Converters {
     }
 }
 
+/** Reads everything once so it can be moved to the server. */
 @Dao
 interface KondateDao {
-    @Query("SELECT * FROM dish ORDER BY name")
-    fun dishes(): Flow<List<Dish>>
-
-    @Query("SELECT presetKey FROM dish WHERE presetKey IS NOT NULL")
-    suspend fun presetKeys(): List<String>
-
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertDishes(dishes: List<Dish>)
-
-    @Insert
-    suspend fun insertDish(dish: Dish): Long
-
-    @Update
-    suspend fun updateDish(dish: Dish)
+    @Query("SELECT * FROM dish")
+    suspend fun dishes(): List<LegacyDish>
 
     @Query("SELECT * FROM meal_slot")
-    fun slots(): Flow<List<MealSlot>>
+    suspend fun slots(): List<LegacyMealSlot>
 
-    @Query("SELECT * FROM meal_slot WHERE date = :date AND meal = :meal")
-    suspend fun slot(date: LocalDate, meal: Meal): MealSlot?
-
-    @Upsert
-    suspend fun upsertSlot(slot: MealSlot)
-
-    @Query("DELETE FROM meal_slot WHERE date = :date AND meal = :meal")
-    suspend fun deleteSlot(date: LocalDate, meal: Meal)
-
-    /** Takes back the unchecked rows a slot added for any dish other than [keepDishId]; checked rows stay. */
-    @Query("DELETE FROM shopping_item WHERE date = :date AND meal = :meal AND checked = 0 AND dishId IS NOT :keepDishId")
-    suspend fun deleteOpenShoppingItemsFor(date: LocalDate, meal: Meal, keepDishId: Long?)
-
-    /** Puts a dish in a slot; the previous dish's unchecked ingredients leave the shopping list. */
-    @Transaction
-    suspend fun assignSlot(slot: MealSlot) {
-        deleteOpenShoppingItemsFor(slot.date, slot.meal, keepDishId = slot.dishId)
-        upsertSlot(slot)
-    }
-
-    @Transaction
-    suspend fun clearSlot(date: LocalDate, meal: Meal) {
-        deleteOpenShoppingItemsFor(date, meal, keepDishId = null)
-        deleteSlot(date, meal)
-    }
-
-    /** Drops one planned slot onto another, swapping their dishes; shopping rows added from each slot follow its dish. */
-    @Transaction
-    suspend fun moveSlot(fromDate: LocalDate, fromMeal: Meal, toDate: LocalDate, toMeal: Meal) {
-        val from = slot(fromDate, fromMeal) ?: return
-        val move = slotMove(from, toDate, toMeal, slot(toDate, toMeal)?.dishId, currentShoppingItems())
-        move.vacated?.let { deleteSlot(it.date, it.meal) }
-        move.slots.forEach { upsertSlot(it) }
-        updateShoppingItems(move.items)
-    }
-
-    @Query("SELECT * FROM shopping_item ORDER BY checked, id")
-    fun shoppingItems(): Flow<List<ShoppingItem>>
-
-    @Query("SELECT * FROM shopping_item")
-    suspend fun currentShoppingItems(): List<ShoppingItem>
-
-    @Insert
-    suspend fun insertShoppingItems(items: List<ShoppingItem>)
-
-    @Update
-    suspend fun updateShoppingItems(items: List<ShoppingItem>)
-
-    @Delete
-    suspend fun deleteShoppingItems(items: List<ShoppingItem>)
-
-    @Query("DELETE FROM shopping_item WHERE checked = 1")
-    suspend fun deleteCheckedShoppingItems()
-
-    /** Returns how many rows were added; sources already in the list or on a day before [today] add none. */
-    @Transaction
-    suspend fun addToShoppingList(sources: List<ShoppingSource>, today: LocalDate): Int {
-        val rows = shoppingRowsToAdd(currentShoppingItems(), sources, today)
-        insertShoppingItems(rows)
-        return rows.size
-    }
-
-    @Transaction
-    suspend fun deleteExpiredShoppingItems(today: LocalDate) {
-        deleteShoppingItems(expiredShoppingRows(currentShoppingItems(), today))
-    }
+    @Query("SELECT * FROM shopping_item ORDER BY id")
+    suspend fun shoppingItems(): List<LegacyShoppingItem>
 }
 
-@Database(entities = [Dish::class, MealSlot::class, ShoppingItem::class], version = 3)
+@Database(entities = [LegacyDish::class, LegacyMealSlot::class, LegacyShoppingItem::class], version = 3)
 @TypeConverters(Converters::class)
 @ConstructedBy(KondateDatabaseConstructor::class)
 abstract class KondateDatabase : RoomDatabase() {
